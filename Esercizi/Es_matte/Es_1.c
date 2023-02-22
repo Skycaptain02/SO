@@ -11,7 +11,7 @@ int main(){
     char v_2[] = "Ciao";
     int v[10] = {3, -1, 4};
     for(int i = 0; i < 10; i++){
-        prinf("%d",v[i]);
+        printf("%d",v[i]);
     }
 }
 
