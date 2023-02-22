@@ -8,7 +8,7 @@ int main(){
     int v[10];
     //printf("%d",length(v));
     //int d[-1];
-    printf("%ld", sizeof(v));
+    printf("%ld", sizeof(v)/sizeof(v[0]));
 }
 
 int my_function(){
