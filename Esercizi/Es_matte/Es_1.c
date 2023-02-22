@@ -6,8 +6,9 @@ int main(){
     int c = my_function();
     printf("%d", c);
     int v[10];
-    printf("%d",length(v));
+    //printf("%d",length(v));
     //int d[-1];
+    sizeof(v);
 }
 
 int my_function(){
