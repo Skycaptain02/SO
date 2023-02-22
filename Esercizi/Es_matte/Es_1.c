@@ -1,5 +1,4 @@
 int my_function(){
-    int d;
     return 5;
 }
 
