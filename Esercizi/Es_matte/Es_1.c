@@ -1,22 +1,26 @@
 #include <stdio.h>
-
-int my_function();
+#include <string.h>
 
 int main(){
-    int c = my_function();
-    printf("%d", c);
-    //printf("%d",length(v));
-    //int d[-1];
-    printf("%ld", sizeof(v)/sizeof(v[0]));
-    char v_2[] = "Ciao";
-    int v[10] = {3, -1, 4};
-    for(int i = 0; i < 10; i++){
-        prinf("%d",v[i]);
+    char s_1[] = "Ciao";
+    char s_2[] = " Alberto";
+    int n;
+    n = ((sizeof(s_1)/sizeof(s_1[0])) + (sizeof(s_2)/sizeof(s_2[0])));
+    char r[n];
+    int i = 0;
+    while(s_1[i] != 0){
+        r[i] = s_1[i];
+        i++;
     }
+    int j = 0;
+    while(s_2[j] != 0){
+        r[i] = s_2[j];
+        j++;
+        i++;
+        if(s_2[j] == 0){
+            r[i] = 0;
+        }
+    }
+    printf("%s", r);
 }
-
-int my_function(){
-    return 5;
-}
-
 
