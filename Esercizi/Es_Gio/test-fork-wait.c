@@ -6,20 +6,12 @@
 #include <errno.h>
 #include <string.h>
 
-#define NUM_KIDS 8
+#define NUM_KIDS 20
 
 int main (int argc, char * argv[]) {
 	long num_cores, n_loops;
 	pid_t child_pid;
 	int status, i, j;
-	
-	/* Read n_loops from argv[1] */
-	if (argc < 2) {
-		fprintf(stderr, "Please specify argv[1] as n_loops\n");
-		return -1;
-	} else {
-		n_loops = atol(argv[1]);
-	}
 	
 	/* Looping to create child processes */ 
 	for (i=0; i<NUM_KIDS; i++) {
@@ -30,14 +22,10 @@ int main (int argc, char * argv[]) {
 			exit(EXIT_FAILURE);
 		case 0:
 			/* Perform actions specific to child */
-			printf("PID= %5d (CHILD): i=%d, running a lot\n",
-			       getpid(), i);
-			/* Keeping the CPU busy */
-			for(j=0; j<n_loops; j++);
-			exit(i);
-			printf("Hi, \
-my PID is %d and you should never see this message\n", getpid());
-			break;
+			srand(getpid());
+			int r_num = (rand() % 6) + 1;
+			printf("PID= %5d (CHILD): r_num=%d, running a lot\n", getpid(), r_num);
+			exit(r_num);
 			
 		default:
 			/* Perform actions specific to parent */
@@ -47,18 +35,22 @@ my PID is %d and you should never see this message\n", getpid());
 		}
 	}
 	
+	int sum = 0;
 	/* Now let's wait that all kids do the stuff */
 	while ((child_pid = wait(&status)) != -1) {
-		printf("PID= %5d (PARENT): \
-Got info of child with PID=%d, status=0x%04X\n",
-		       getpid(), child_pid, status);
+		printf("PID= %5d (PARENT): Got info of child with PID=%d, status=%d\n",
+		       getpid(), child_pid, WEXITSTATUS(status));
+		status = WEXITSTATUS(status);
+		sum += status;
 	}
 	if (errno == ECHILD) {
 		printf("In PID=%6d, no more child processes\n",
 		       getpid());
+		printf("Sum: %d\n", sum);
 		exit(EXIT_SUCCESS);
 	} else {
 		fprintf(stderr, "Error #%d: %s\n", errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+	
 }
