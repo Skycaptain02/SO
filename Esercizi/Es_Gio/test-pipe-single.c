@@ -11,8 +11,8 @@
 #define ADD_MARK_AFTER_READ
 */
 
-#define NUM_ITER      5
-#define READ_BUF_SIZE 5        /* try varying this */
+#define NUM_ITER      10000
+#define READ_BUF_SIZE 1        /* try varying this */
 #define TEST_ERROR    if (errno) {fprintf(stderr,			\
 					  "%s:%d: PID=%5d: Error %d (%s)\n", \
 					  __FILE__,			\
@@ -20,6 +20,7 @@
 					  getpid(),			\
 					  errno,			\
 					  strerror(errno));}
+					  
 
 
 int main (void)
@@ -33,6 +34,7 @@ int main (void)
 	
 	/* PIPE_BUF is declared in limits.h */
 	printf("Pipe capacity on this machine is %d bytes. Good.\n", PIPE_BUF);
+	
 
 	/* 
 	 * Create a pipe: any byte written to the my_pipe[1] file
