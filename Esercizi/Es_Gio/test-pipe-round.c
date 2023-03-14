@@ -12,7 +12,7 @@
  * Uncomment ENABLE_ROUND to enforce the ordering among the child
  * processes
  */
-/* #define ENABLE_ROUND */
+#define ENABLE_ROUND
 
 #define NUM_PROC      4
 #define NUM_ITER      20
