@@ -36,7 +36,5 @@ int main(int argc, char * argv[]){
 }
 
 void Sig_Handler(int signal){
-    dprintf(1,"Valore corrente di C: %d\n", c);
-
     exit(c);
 }

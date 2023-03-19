@@ -16,19 +16,24 @@ void sig_handler(int signal);
 
 int gbl_figli;
 pid_t * pid;
+char * stringa;
+int k = 0, rand_id;
+    
 
 int main(int argc, char * argv[]){
     int errno;
     int s_id;
+    srand(getpid());
     
 
     gbl_figli  = atoi(argv[1]);    
 
+    stringa = malloc(gbl_figli*sizeof(stringa));
+
     int i = 0;
     pid = malloc(sizeof(pid)*gbl_figli);
     int status;
-    char * stringa;
-    stringa = malloc(gbl_figli*sizeof(stringa));
+    
     char * argv_loop[] = {"./char-loop","aiao", (char*)0};
 
     struct sigaction sa;
@@ -66,24 +71,51 @@ int main(int argc, char * argv[]){
         kill(pid[i], SIGINT);
         printf("mando sigint a figlio: %d\n", pid[i]);
     }*/
-    
-    i = 0;
-    pid_t child_pid;
-    while((child_pid = wait(&status)) != -1){
-        printf("PID= %5d (PARENT): Got info of child with PID=%d, status=%d\n", getpid(), child_pid, WEXITSTATUS(status));
-        stringa[i++] = WEXITSTATUS(status);
+    while(wait(&status) != -1 || errno == EINTR){
+        //stringa[i++] = WEXITSTATUS(status);
+        pid[rand_id] = fork();
+        if(pid[rand_id] == 0){
+            execve("char-loop", argv_loop, NULL);
+        }
+        else{
+            alarm(1);
+        }
     }
-    printf("Stringa ottenuta : %s\n", stringa);
+    if(errno){
+        printf("Error %s\n", strerror(errno));
+    }
 
     
 }
 
 void sig_handler(int signal){
+    
+    rand_id = rand() % gbl_figli;
+    
 
-    printf("CIAO\n");
-    srand(getpid());
-    int proc = rand() % gbl_figli;
+    kill(pid[rand_id],SIGINT);
+    printf("Child killed: %d\n", pid[rand_id]);
+    printf("Random num: %d\n", rand_id);
 
-    kill(pid[proc],SIGINT);
+    pid_t child_pid;
+    int status;
+
+    while((child_pid = wait(&status)) != pid[rand_id]);
+    stringa[k++] = WEXITSTATUS(status);
+    printf("Stringa ottenuta : %s\n", stringa);
+    int i, sum = 0;
+    for(i = 0; i < k; i++){
+        sum += stringa[i];
+    }
+    printf("Modulo 256: %d\n", sum%256);
+    if(sum % 256 == 0){
+        for(i = 0; i < gbl_figli; i++){
+        
+            kill(pid[i], SIGINT);
+            printf("mando sigint a figlio: %d\n", pid[i]);
+        }
+        while(wait(NULL) != -1);
+        exit(0);
+    }
 
 }
