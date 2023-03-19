@@ -19,21 +19,9 @@ int main(int argc, char * argv[]){
 
     bzero(&sa, sizeof(sa));
 
-    sa.sa_handler = Sig_Handler;
-    
-    int s_sem = atoi(argv[2]);
-
-    int id_sem = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600);
-
-    struct  sembuf my_op;
-
-    my_op.sem_num = 0;
-    my_op.sem_op = -1;
-    semop(id_sem, &my_op, 1);
+    sa.sa_handler = Sig_Handler;    
 
     sigaction(SIGINT, &sa, NULL);
-
-    
 
     c = *argv[1];
 
