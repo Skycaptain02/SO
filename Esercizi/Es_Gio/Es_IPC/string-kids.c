@@ -14,15 +14,29 @@
 int main(int argc, char * argv[]){
     int figli;
     int errno;
+    int s_id;
+
+    
 
     figli  = atoi(argv[1]);
+
+    s_id = semget(2132, 1, IPC_CREAT | 0600);
+
+    
 
     int i = 0;
     pid_t pid[figli];
     int status;
     char * stringa;
     stringa = malloc(figli*sizeof(stringa));
-    char * argv_loop[] = {"./char-loop","aiao", (char*)0};
+    char buf[5];
+    sprintf(buf,"%d", s_id);
+    char * argv_loop[] = {"./char-loop","aiao", buf, (char*)0};
+
+    semctl(s_id,0,SETVAL,figli);
+
+    printf("ACCESSi al sem 0: %d\n", semctl(s_id,0,GETVAL));
+
 
     for(i = 0; i < figli; i++){
         switch (pid[i] = fork())
@@ -42,7 +56,10 @@ int main(int argc, char * argv[]){
         }
     }
 
-    sleep(1);
+    int val;
+    while(val = semctl(s_id,0,GETVAL) != 0){
+        //printf("ATTENDO: %d \n", val);
+    };
 
     for(i = 0; i < figli; i++){
         
