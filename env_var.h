@@ -1,3 +1,10 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <errno.h>
+
+
 #define SO_NAVI 20
 #define SO_PORTI 20
 #define SO_MERCI 20
@@ -14,3 +21,4 @@
 #define SO_STORM_DURATION 20
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20
+
