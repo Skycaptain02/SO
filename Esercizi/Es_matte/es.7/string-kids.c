@@ -15,21 +15,24 @@ void sig_Handler(int signal);
 
 int gbl_figli;
 pid_t * figli;
+char * stringa;
+int k = 0;
+int rand_id;
 
 int main(int argvc, char * argv[]){
+    
+    srand(getpid());
 
     struct sigaction sa;
     bzero(&sa, sizeof(sa));
     sa.sa_handler = sig_Handler;
     sigaction(SIGALRM, &sa, NULL);
 
-    int gbl_figli = atoi(argv[1]); //devo ricordare che i valori passati da riga di comando sono char
+    gbl_figli = atoi(argv[1]); //devo ricordare che i valori passati da riga di comando sono char
     figli = malloc(sizeof(figli) * gbl_figli); //creo un array in cui inseriro i pid dei figli creati dalla fork per potergli mandare un segnale
-    int pid_figlio;
-    int status;  //valore di ritrono dello statutus
     char * argv_loop[] = {"","Ciao", NULL}; //la execve vuole come primo parametro il nome dell'eseguibile, come secondo il paramentro da passare via riga di comanda, terzo nullo
-    char * stringa; //creo una stringa di valori di exitstauts
     stringa = malloc(gbl_figli * sizeof(stringa)); //creo l'array
+    int status;
     
     int i = 0;
 
@@ -49,16 +52,39 @@ int main(int argvc, char * argv[]){
     }
 
     alarm(1);
-
-    while(wait(&status) != -1){
-        stringa[i++] = WEXITSTATUS(status);
+    while(wait(&status)!= -1 || errno == EINTR){
+        figli[rand_id] = fork();
+        if(figli[rand_id] == 0){
+            execve("char-loop", argv_loop, NULL);
+        }
+        else{
+            alarm(1);
+        }
     }
-    printf("La stringa ottenuta : %s\n", stringa);
 }
 
 void sig_Handler(int signal){
-    srand(getpid());
-    int r = rand() % gbl_figli;
-    kill(figli[r], SIGINT);
-    printf("Ciao\n");
+    int status; 
+    int i;
+    int sum = 0;
+
+    rand_id = rand() % gbl_figli;
+    printf("Il figlio scelto e' %d\n", figli[rand_id]);
+    kill(figli[rand_id], SIGINT);
+
+    while(wait(&status) != figli[rand_id]); //aspetto che il figlio r termini
+
+    stringa[k++] = WEXITSTATUS(status);
+    printf("[STRINGA] = %s\n", stringa);
+    for(i = 0; i < k; i++){
+        sum = sum + stringa[i];
+    }
+    printf("La somma ottenuta e' = %d\n", sum);
+    if(sum % 256 == 0){
+        for(i = 0; i < gbl_figli; i++){
+            kill(figli[i], SIGINT);
+        }
+        while(wait(NULL) != -1);
+        exit(0);
+    }
 }
