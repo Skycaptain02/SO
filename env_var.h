@@ -10,6 +10,7 @@
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <string.h>
+#include <signal.h>
 
 
 #define SO_NAVI 20
