@@ -1,8 +1,15 @@
+#ifdef ENV_VAR
+#else
+#define ENV_VAR
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <string.h>
 
 
 #define SO_NAVI 20
@@ -22,3 +29,4 @@
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20
 
+#endif
