@@ -3,6 +3,8 @@
 
 /*Sez Semafori*/
 
+int errno;
+
 int sem_set_val(int sem_id, int sem_num, int sem_val){
     int ret_value;
     ret_value = semctl(sem_id, sem_num, SETVAL , sem_val);

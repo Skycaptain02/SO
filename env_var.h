@@ -2,6 +2,8 @@
 #else
 #define ENV_VAR
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
