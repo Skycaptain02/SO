@@ -1,6 +1,7 @@
 #ifdef IPC
 #else
 #define IPC
+#include <stddef.h>
 
 /*Sez Semafori*/
 
@@ -23,6 +24,10 @@ int sem_remove(int sem_id);
 /*Fine Sez Semafori*/
 
 /*Sez Message Queue*/
+
+struct msqid_ds{
+	int a;
+};
 
 int msg_send(int msg_id, const void *msg_p, size_t msg_size, int msg_flags);
 

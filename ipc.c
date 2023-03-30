@@ -1,6 +1,7 @@
 #include "ipc.h"
 #include "env_var.h"
 
+
 /*Sez Semafori*/
 
 int errno;
@@ -12,7 +13,7 @@ int sem_set_val(int sem_id, int sem_num, int sem_val){
         return ret_value;
     }
     else{
-        printf("Error in setting semaphore value, error: %d\n", strerror(errno));
+        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
     }
     
 }
@@ -40,7 +41,7 @@ int sem_remove(int sem_id){
         return ret_value;
     }
     else{
-        printf("Error in setting semaphore value, error: %d\n", strerror(errno));
+        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
     }
 }
 
@@ -55,7 +56,7 @@ int msg_send(int msg_id, const void *msg_p, size_t msg_size, int msg_flags){
         return ret_value;
     }
     else{
-        printf("Error in setting semaphore value, error: %d\n", strerror(errno));
+        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
     }
 }
 
@@ -66,7 +67,7 @@ int msg_receive(int msg_id, const void *msg_p, size_t msg_size, long msg_type, i
         return ret_value;
     }
     else{
-        printf("Error in setting semaphore value, error: %d\n", strerror(errno));
+        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
     }
 }
 
@@ -78,7 +79,7 @@ int msg_control(int msg_id, int msg_command, struct msqid_ds *msg_buf){
         return ret_value;
     }
     else{
-        printf("Error in setting semaphore value, error: %d\n", strerror(errno));
+        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
     }
 }
 

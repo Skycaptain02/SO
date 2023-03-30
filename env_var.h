@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <string.h>
 #include <signal.h>
 
@@ -31,5 +32,11 @@
 #define SO_STORM_DURATION 20
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20
+
+struct merci{
+    int type;
+    int weight;
+    int life;
+};
 
 #endif
