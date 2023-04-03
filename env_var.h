@@ -17,7 +17,7 @@
 
 
 #define SO_NAVI 20
-#define SO_PORTI 20
+#define SO_PORTI 4
 #define SO_MERCI 20
 #define SO_SIZE 20
 #define SO_MIN_VITA 20
@@ -26,7 +26,7 @@
 #define SO_SPEED 20
 #define SO_CAPACITY 20
 #define SO_BANCHINE 20
-#define SO_FILL 20
+#define SO_FILL 150
 #define SO_LOADSPEED 20
 #define SO_DAYS 20
 #define SO_STORM_DURATION 20

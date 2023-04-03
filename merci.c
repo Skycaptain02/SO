@@ -4,10 +4,8 @@ int main(int argc, char * argv[]){
     int i, shm_id;
     struct merci * tipi_merci;
 
-    printf("ARGV 1: %s\n", argv[1]);
-
     srand(getpid());
-    shm_id = atoi(argv[1]);
+    shm_id = shmget(getppid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_id, NULL, 0);
 
     for(i = 0; i < SO_MERCI; i++){ 

@@ -12,9 +12,13 @@ meteo: meteo.c
 
 ipc: ipc.c
 	gcc -std=c89 -Wpedantic -c ipc.c
+
+merci: merci.c
+	gcc -std=c89 -Wpedantic merci.c -o merci
 	
 all: master.c navi.o
 	gcc -std=c89 -Wpedantic master.c ipc.o -o master
 	gcc -std=c89 -Wpedantic navi.c ipc.o -o navi
 	gcc -std=c89 -Wpedantic porti.c ipc.o -o porti
 	gcc -std=c89 -Wpedantic meteo.c ipc.o -o meteo
+	gcc -std=c89 -Wpedantic merci.c -o merci
