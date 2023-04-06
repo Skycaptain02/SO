@@ -18,7 +18,7 @@
 
 #define SO_NAVI 20
 #define SO_PORTI 4
-#define SO_MERCI 20
+#define SO_MERCI 6
 #define SO_SIZE 20
 #define SO_MIN_VITA 20
 #define SO_MAX_VITA 20

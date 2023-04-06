@@ -27,28 +27,24 @@ int main(int argc, char * argv[]){
         {
             /*In alto a sinistra*/
             case 1:
-                printf("In alto a sinistra\n");
                 harbor_pos_x = - SO_LATO/2;
                 harbor_pos_y = SO_LATO/2;
             break;
             
             /*In alto a destra*/
             case 2:
-                printf("In alto a destra\n");
                 harbor_pos_x = SO_LATO/2;
                 harbor_pos_y = SO_LATO/2;
             break;
 
             /*In basso a sinistra*/
             case 3: 
-                printf("In basso a sinistra\n");
                 harbor_pos_x = -SO_LATO/2;
                 harbor_pos_y = -SO_LATO/2;
             break;
 
             /*In basso a destra*/
             case 4:
-                printf("In basso a destra\n");
                 harbor_pos_x = SO_LATO/2;
                 harbor_pos_y = -SO_LATO/2;
             break;
