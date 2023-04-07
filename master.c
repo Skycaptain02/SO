@@ -1,6 +1,9 @@
 #include "env_var.h"
 #include "ipc.h"
 
+void gen_offerta(int * arr_offerta, int  matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
+void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
+
 void handler(int signal){
     
 }
@@ -17,7 +20,7 @@ int main(int argc, char * argv[]){
     pid_t * pid_navi, * pid_porti, pid_meteo;
     struct merci * tipi_merci;
     char buf_idsem[50], buf_4harbour[50], buf_shm_merci[50];
-    int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI+1] = {0}, arr_offerte[SO_PORTI] = {-1}, flag = 1;
+    int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI+1] = {0}, arr_offerte[SO_PORTI], flag = 1;
 
     char* args_navi[] = {"./navi", NULL};
     char* args_porti[] = {"./porti", NULL};
@@ -123,81 +126,9 @@ int main(int argc, char * argv[]){
         }
 
     }
-
-    for(i = 0; i < SO_PORTI; i++){
-        printf("%d\n", pid_porti[i]);
-    }
-
-    for(j = 0; j < SO_PORTI; j++){
-        matr_richieste[j][0] = pid_porti[j];
-        for(k = 0; k < SO_MERCI/2; k++){
-            ric_1 = (rand() % SO_MERCI)+1;
-            while(matr_richieste[j][ric_1] == 1){
-                ric_1 = (rand() % SO_MERCI)+1;
-            }
-            matr_richieste[j][ric_1] = 1;
-        }
-    }
     
-    for(j = 0; j < SO_PORTI; j++){
-        rand_pid = rand() % (SO_PORTI-1);
-        flag = 0;
-        while(!flag){
-            while(rand_pid == j){
-                rand_pid = rand() % (SO_PORTI-1);
-            }
-            for(k = 0; k  < SO_PORTI; k++){
-                if(rand_pid == arr_offerte[k]){
-                    rand_pid = rand() % (SO_PORTI-1);
-                    flag = 0;
-                    sleep(1);
-                    break;
-                }
-                else{
-                    flag = 1;
-                    printf("Metto flag a 1\n");
-                }
-            }
-            
-            if(flag == 1){
-                arr_offerte[j] = rand_pid;
-                printf("pid dentro: %d\n",rand_pid);
-            }
-            else{
-                printf("Sono uscito dal for %d\n", flag);
-                flag = 0;
-            }
-            printf("Flag dentro %d\n",flag);
-        }
-        printf("Flag furoi %d\n",flag);
-        matr_offerte[j][0] = pid_porti[j];
-        
-        for(k = 1; k < SO_MERCI + 1; k++){
-            matr_offerte[j][k] = matr_richieste[rand_pid][k];
-        }
-    }
-    for(i = 0; i < SO_PORTI; i++){
-        printf("pid: %d\n", arr_offerte[i]);
-    }
-
-    printf("\tRICHIESTE\n");
-    for(j = 0; j < SO_PORTI; j++){
-        printf("Pid: %d ", matr_richieste[j][0]);
-        for(k = 1; k < SO_MERCI + 1; k++){
-            printf("merce: %d,\tpresa: %d\t", k, matr_richieste[j][k]);
-        }
-        printf("\n");
-    }
-
-    printf("\tOFFERTE\n");
-    for(j = 0; j < SO_PORTI; j++){
-        printf("Pid: %d ", matr_offerte[j][0]);
-        for(k = 1; k < SO_MERCI + 1; k++){
-            printf("merce: %d,\tpresa: %d\t", k, matr_offerte[j][k]);
-        }
-        printf("\n");
-    }
-
+    gen_richiesta(matr_richieste, pid_porti, 1);
+    gen_offerta(arr_offerte, matr_richieste, matr_offerte, pid_porti, 1);
 
 
     switch(pid_meteo = fork()){
@@ -226,4 +157,100 @@ int main(int argc, char * argv[]){
 
     shmdt (tipi_merci);
     shmctl(shm_merci_id , IPC_RMID , NULL);
+}
+
+
+void gen_offerta(int * arr_offerta, int  matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
+    int arr_copy[SO_PORTI];
+    int i, k, j, rand_pid, counter = SO_PORTI;
+
+    for(i = 0; i < SO_PORTI; i++){
+        arr_copy[i] = i;
+        arr_offerta[i] = - 1;
+    }
+    i = 0;
+    while(i != SO_PORTI){
+        rand_pid = rand() % SO_PORTI;
+        if(arr_offerta[i] == - 1 && arr_copy[rand_pid] != - 1 && rand_pid != i){
+            arr_offerta[i] = arr_copy[rand_pid];
+            arr_copy[rand_pid] = - 1;
+            i++;
+            counter--;
+        }
+        if(counter == 1){
+            for(k = 0; k < SO_PORTI; k++){
+                if(arr_copy[k] != -1){
+                    arr_offerta[i] = arr_copy[k];
+                    arr_copy[rand_pid] = - 1;
+                }
+            }
+            i++;
+        }
+    }
+    
+    for(i = 0; i < SO_PORTI; i++){
+        matr_offerte[i][0] = pid_porti[i];
+        for(k = 1; k < SO_MERCI + 1; k++){
+            matr_offerte[i][k] = matr_richieste[arr_offerta[i]][k];
+        }
+    }
+
+    if(print){
+        printf("\tOFFERTE\n");
+        for(j = 0; j < SO_PORTI; j++){
+            printf("Pid: %d ", matr_offerte[j][0]);
+            for(k = 1; k < SO_MERCI + 1; k++){
+                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[j][k]);
+            }
+            printf("\n");
+        }
+}
+    }
+    
+
+void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
+    int ric_1, arr_control[SO_MERCI] = {0}, counter = 0;
+    int j, k;
+    for(j = 0; j < SO_PORTI-1; j++){
+        matr_richieste[j][0] = pid_porti[j];
+        for(k = 0; k < SO_MERCI/2; k++){
+            ric_1 = (rand() % SO_MERCI)+1;
+            while(matr_richieste[j][ric_1] == 1){
+                ric_1 = (rand() % SO_MERCI)+1;
+            }
+            matr_richieste[j][ric_1] = 1;
+            
+        }
+    }
+    for(j = 0; j < SO_PORTI-1; j++){
+        for(k = 1; k < SO_MERCI +1; k++){
+            arr_control[k-1] |= matr_richieste[j][k];
+        }
+    }
+
+    matr_richieste[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
+    for(k = 1; k < SO_MERCI+1; k++){
+        if(arr_control[k-1] == 0){
+            matr_richieste[SO_PORTI-1][k] = 1;
+            counter += 1;
+        }
+    }
+    for(k = 0; k < (SO_MERCI/2)-counter; k++){
+        ric_1 = (rand() % SO_MERCI)+1;
+        while(matr_richieste[SO_PORTI-1][ric_1] == 1){
+            ric_1 = (rand() % SO_MERCI)+1;
+        }
+        matr_richieste[SO_PORTI-1][ric_1] = 1;
+    }
+    if(print){
+        printf("\tRICHIESTE\n");
+        for(j = 0; j < SO_PORTI; j++){
+            printf("Pid: %d ", matr_richieste[j][0]);
+            for(k = 1; k < SO_MERCI + 1; k++){
+                printf("merce: %d,\tpresa: %d\t", k, matr_richieste[j][k]);
+            }
+            printf("\n");
+        }
+    }
+ 
 }
