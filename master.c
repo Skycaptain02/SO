@@ -160,6 +160,11 @@ int main(int argc, char * argv[]){
 }
 
 
+/**
+ * Creazione di un array di indici casuali, non doppioni arr_offerta
+ * ogni riga della matrice delle offerte sarà associata una riga della matrice delle richieste, scelta tramite i valori dell'array precedente
+ * la generazione di tali indici e' controllata in modo che ogni porto non potrà avere richiete = offerta
+*/
 void gen_offerta(int * arr_offerta, int  matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
     int arr_copy[SO_PORTI];
     int i, k, j, rand_pid, counter = SO_PORTI;
@@ -204,10 +209,16 @@ void gen_offerta(int * arr_offerta, int  matr_richieste[SO_PORTI][SO_MERCI+1], i
             }
             printf("\n");
         }
-}
     }
+}
     
-
+/**
+ * Creazione matrice richieste, una matrice riempita di 0 e 1, la prima colonna viene riempita dai PID dei porti che richiedono la merce. 0 e 1 servono per indicare se
+ * la corrispettiva merce indicata nella colonna e' richiesta o meno
+ * L'unico controllo effettuato e' che ogni porto richiede SO_MERCI/2 merci e nel caso in cui una o più merci specifiche non vengano richieste da alcun porto, l'ultimo porto 
+ * richiederà tutte le merci non richieste dagli altri. 
+ * Quest'ultimo porto e' gestito tramite un arr_control
+*/
 void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
     int ric_1, arr_control[SO_MERCI] = {0}, counter = 0;
     int j, k;

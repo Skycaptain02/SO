@@ -21,7 +21,11 @@ int main(int argc, char * argv[]){
 
     srand(getpid());
 
-    /*Creo i primi 4 porti su i 4 lati della mappa*/
+/**
+ * Creo i primi 4 porti su i 4 lati della mappa
+ * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
+ * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
+*/
     if(atoi(argv[2]) != 0){
         switch (atoi(argv[2]))
         {
@@ -55,7 +59,9 @@ int main(int argc, char * argv[]){
         harbor_pos_y = (rand() % (SO_LATO + 1)) - (SO_LATO /2);
     }
 
-    /* Abbasso il semaforo per comunicare al master che il porto e' pronto */
+/**
+ * Porti creati in una posizione casuale della mappa, comunico al master tramite semaforo che tutti i porti sono pronti a comiciare la simulazione
+*/
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
