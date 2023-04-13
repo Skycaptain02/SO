@@ -77,6 +77,7 @@ int main(int argc, char * argv[]){
     /**
      * Generazionie di tutte le navi
     */
+
     for(i = 0; i < SO_NAVI; i++){
         switch (pid_navi[i] = fork())
         {
@@ -172,16 +173,27 @@ int main(int argc, char * argv[]){
  * Generazione matrice offerte, tutte le offerte vengono generate in una matrice di 0 e 1 la quale e' la copia della matrice delle richieste ma invertita
  * Questo ci garantisce anche che tutte le merci siano offerta da un porto almeno una volta
 */
+
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
     int arr_copy[SO_PORTI];
     int i, k, j, flag = 0; 
-    int rand_pid, counter = SO_PORTI;
+    int rand_pid, counter = 0;
 
     for(i = 0; i < SO_PORTI; i++){
         matr_offerte[i][0] = pid_porti[i];
-        for(j = 1; j < SO_PORTI; j++){
-            matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
+        while(j < SO_MERCI){
+            rand_pid = rand() % 1
+            if(rand_pid){
+                matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
+                counter++;
+            }
+            if(j == SO_PORTI && counter < SO_MERCI/2){
+                j = 0;
+            }
+            j++;
         }
+        j = 1;
+        counter = 0;
     }
 
     if(print){
@@ -203,6 +215,7 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
  * L'ultimo porto richiederà tutte le merci che non sono state richieste dai restanti SO_PORTI - 1 porti, assicurandoci che tutte le merci siano richieste
  * da almeno un porto
 */
+
 void gen_richiesta_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI + 1], int * pid_porti, int print){
     int col_merce_richiesta, arr_control[SO_MERCI] = {0}, counter = 0;
     int i, j, k, z;
