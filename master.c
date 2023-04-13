@@ -10,7 +10,6 @@ void handler(int signal){
 
 int main(int argc, char * argv[]){
 
-
     struct sigaction sa;
 
     int i, j, k, status, errno, shm_merci_id, shm_gen_id, sem_config_id;
@@ -31,6 +30,11 @@ int main(int argc, char * argv[]){
 
 
     srand(getpid());
+
+    if(SO_PORTI <= 4){
+        printf("[SISTEMA]\t -> \t -> IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, ALMENO 4\n")
+        exit(-1);
+    }
     
 
     /*bzero(&sa, sizeof(sa));
@@ -88,8 +92,6 @@ int main(int argc, char * argv[]){
         }
     }
 
-
-    
     /*Vado a creare i primi 4 porti su ogni lato della mappa*/
     for(i = 0; i < 4; i++){
         switch (pid_porti[i] = fork())
@@ -130,17 +132,16 @@ int main(int argc, char * argv[]){
     gen_richiesta(matr_richieste, pid_porti, 1);
     gen_offerta(arr_offerte, matr_richieste, matr_offerte, pid_porti, 1);
 
-
     switch(pid_meteo = fork()){
-            case -1:
-                printf("C'è stato un errore nel fork per il meteo: %s", strerror(errno));
-                exit(-1);
-                break;
-            case 0:
-                execve("./meteo", args_meteo , NULL);
-                exit(0);
-            default:
+        case -1:
+            printf("C'è stato un errore nel fork per il meteo: %s", strerror(errno));
+            exit(-1);
             break;
+        case 0:
+            execve("./meteo", args_meteo , NULL);
+            exit(0);
+        default:
+        break;
     }
 
    while(semctl(sem_config_id, 0, GETVAL) != 0);
@@ -161,7 +162,7 @@ int main(int argc, char * argv[]){
 
 
 /**
- * Creazione di un array di indici casuali, non doppioni arr_offerta
+ * Creazione di un array di indici casuali, non doppioni: arr_offerta
  * ogni riga della matrice delle offerte sarà associata una riga della matrice delle richieste, scelta tramite i valori dell'array precedente
  * la generazione di tali indici e' controllata in modo che ogni porto non potrà avere richiete = offerta
 */
@@ -220,19 +221,25 @@ void gen_offerta(int * arr_offerta, int  matr_richieste[SO_PORTI][SO_MERCI+1], i
  * Quest'ultimo porto e' gestito tramite un arr_control
 */
 void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
-    int ric_1, arr_control[SO_MERCI] = {0}, counter = 0;
-    int j, k;
+    int col_merce_richiesta, arr_control[SO_MERCI] = {0}, counter = 0;
+    int i, j, k;
+    int sum = 0;
+
     for(j = 0; j < SO_PORTI-1; j++){
         matr_richieste[j][0] = pid_porti[j];
         for(k = 0; k < SO_MERCI/2; k++){
-            ric_1 = (rand() % SO_MERCI)+1;
-            while(matr_richieste[j][ric_1] == 1){
-                ric_1 = (rand() % SO_MERCI)+1;
+            col_merce_richiesta = (rand() % SO_MERCI)+1;
+            for(i = 0; i < SO_PORTI-1; i++){
+                sum += matr_richieste[i][col_merce_richiesta];
             }
-            matr_richieste[j][ric_1] = 1;
+            while(matr_richieste[j][col_merce_richiesta] == 1 && sum <= SO_PORTI/2){
+                col_merce_richiesta = (rand() % SO_MERCI) + 1;
+            }
+            matr_richieste[j][col_merce_richiesta] = 1;
             
         }
     }
+
     for(j = 0; j < SO_PORTI-1; j++){
         for(k = 1; k < SO_MERCI +1; k++){
             arr_control[k-1] |= matr_richieste[j][k];
@@ -240,12 +247,14 @@ void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, i
     }
 
     matr_richieste[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
+
     for(k = 1; k < SO_MERCI+1; k++){
         if(arr_control[k-1] == 0){
             matr_richieste[SO_PORTI-1][k] = 1;
             counter += 1;
         }
     }
+
     for(k = 0; k < (SO_MERCI/2)-counter; k++){
         ric_1 = (rand() % SO_MERCI)+1;
         while(matr_richieste[SO_PORTI-1][ric_1] == 1){
@@ -253,6 +262,7 @@ void gen_richiesta(int  matr_richieste[SO_PORTI][SO_MERCI+1], int * pid_porti, i
         }
         matr_richieste[SO_PORTI-1][ric_1] = 1;
     }
+
     if(print){
         printf("\tRICHIESTE\n");
         for(j = 0; j < SO_PORTI; j++){
