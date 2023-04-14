@@ -170,19 +170,68 @@ int main(int argc, char * argv[]){
 
 /**
  * Generazione matrice offerte, tutte le offerte vengono generate in una matrice di 0 e 1 la quale e' la copia della matrice delle richieste ma invertita
- * Questo ci garantisce anche che tutte le merci siano offerta da un porto almeno una volta
+ * questo processo e' randomico, si sceglie casualemente se invertire o meno il contenuto nella matrice delle richieste
+ * Infine si effettua un controllo sull'ultimo porto, in modo che tutte le merci siano offerte almeno una volta
 */
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
-    int arr_copy[SO_PORTI];
-    int i, k, j, flag = 0; 
+    int arr_control[SO_MERCI]= {0};
+    int i, k, j, flag = 0, sum = 0, col_merce_offerte;
     int rand_pid, counter = SO_PORTI;
 
-    for(i = 0; i < SO_PORTI; i++){
+    for(i = 0; i < SO_PORTI-1; i++){
         matr_offerte[i][0] = pid_porti[i];
-        for(j = 1; j < SO_PORTI; j++){
+        for(j = 1; j < SO_MERCI; j++){
+            rand_pid = rand() % 2;
             matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
+            if(!rand_pid){
+                matr_offerte[i][j] = 0;
+            }
         }
     }
+
+    /**
+     * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata offerta dai primi SO_PORTI-1 porti
+     * Tramite il contenuto di quest'ultimo array andremo ad assegnare all'ultimo porto tutte le risorse che non sono state offerte dagli altri
+    */
+    
+    for(j = 0; j < SO_PORTI-1; j++){
+        for(k = 1; k < SO_MERCI +1; k++){
+            arr_control[k-1] |= matr_offerte[j][k];
+        }
+    }
+    matr_offerte[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
+    
+    /**
+     * Assegnazione all'SO_PORTI porto delle risorse non offerte da nessun'altro porto
+    */
+    
+    for(k = 1; k < SO_MERCI+1; k++){
+        if(arr_control[k-1] == 0){
+            matr_offerte[SO_PORTI-1][k] = 1;
+            counter += 1;
+        }
+    }
+
+    /**
+     * Assegnazione delle rimanenti offerte per l'ultimo porto, escludendo quelle con troppe richieste (> SO_PORTI/2)
+     * oppure già offerte dallo stesso porto (matr_offerte[SO_PORTI-1][col_merce_offerta] == 1)
+     * Quindi ogni merce in totale puà esser offerta al masismo SO_PORTI/2 volte gestito tramite la variabile sum
+    */
+
+    flag = counter;
+    for(k = 1; k <= SO_MERCI && flag < SO_MERCI/2; k++){
+        sum = 0;
+        col_merce_offerte = k;
+        for(i = 0; i < SO_PORTI-1; i++){
+            sum += matr_offerte[i][col_merce_offerte];
+        }
+        if(matr_offerte[SO_PORTI-1][col_merce_offerte] == 1 || sum >= SO_PORTI/2){
+            continue;
+        }
+        matr_offerte[SO_PORTI-1][col_merce_offerte] = 1;
+        flag++;
+    }
+    
 
     if(print){
         printf("\tOFFERTE\n\n");
