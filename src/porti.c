@@ -1,5 +1,5 @@
 #include "env_var.h"
-#include "ipc.h"
+#include "../lib/ipc.h"
 
 void request_gen(struct merci * tipi_merci, int * request_merci);
 void offer_gen(struct merci * tipi_merci, int * offer_merci);
@@ -14,10 +14,14 @@ int main(int argc, char * argv[]){
     double harbor_pos_x;
     double harbor_pos_y;
     struct sigaction sa;
-    int shm_fill_id, sem_config_id, shm_merci_id;
+    int shm_fill_id, sem_config_id, shm_merci_id, shm_pos_id;
     struct merci * tipi_merci;
     int * request_merci;
     int * offer_merci;
+    double * arr_pos;
+    int i;
+
+    
 
     srand(getpid());
 
@@ -26,8 +30,9 @@ int main(int argc, char * argv[]){
  * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
  * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
 */
-    if(atoi(argv[2]) != 0){
-        switch (atoi(argv[2]))
+
+    if(atoi(argv[1]) != 0){
+        switch (atoi(argv[1]))
         {
             /*In alto a sinistra*/
             case 1:
@@ -59,9 +64,10 @@ int main(int argc, char * argv[]){
         harbor_pos_y = (rand() % (SO_LATO + 1)) - (SO_LATO /2);
     }
 
-/**
- * Porti creati in una posizione casuale della mappa, comunico al master tramite semaforo che tutti i porti sono pronti a comiciare la simulazione
-*/
+
+    /**
+     * Porti creati in una posizione casuale della mappa, comunico al master tramite semaforo che tutti i porti sono pronti a comiciare la simulazione
+    */
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
@@ -71,7 +77,8 @@ int main(int argc, char * argv[]){
 
     pause();
 
-    printf("fill: %d\n", *fill);
+    shm_pos_id = shmget(getppid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
+    arr_pos = shmat(shm_pos_id, NULL, 0);
 
     shm_fill_id = shmget(getppid(), 4, 0600 | IPC_CREAT);
     fill = shmat(shm_fill_id, NULL, 0);
@@ -79,13 +86,13 @@ int main(int argc, char * argv[]){
     shm_merci_id = shmget(getppid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_merci_id, NULL, 0);
 
-    /*for(i = 0; i < SO_MERCI; i++){
-        printf("Tipo: %d, Peso: %d, Vita: %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
-    }*/
 
-    while(*fill < SO_FILL){
-        request_gen(tipi_merci, request_merci);
-        offer_gen(tipi_merci, request_merci);
+
+    for(i = 0; i < SO_PORTI; i++){
+        if(arr_pos[i * SO_PORTI] == getpid()){
+            arr_pos[i * SO_PORTI + 1] = harbor_pos_x;
+            arr_pos[i * SO_PORTI + 2] = harbor_pos_y;
+        }
     }
 }
 

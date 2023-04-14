@@ -1,7 +1,7 @@
 #include "env_var.h"
-#include "ipc.h"
+#include "../lib/ipc.h"
 
-void gen_richiesta_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
+void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offerte, int print);
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
 
 void handler(int signal){
@@ -12,22 +12,29 @@ int main(int argc, char * argv[]){
 
     struct sigaction sa;
 
-    int i, j, k, status, errno, shm_merci_id, shm_gen_id, sem_config_id;
+    int i, j, k, status, errno;
+    int shm_pos_navi_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, sem_config_id;
     int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; /*semafori per generare i primi 4 porti, uno per lato*/
     int ric_1, ric_2, rand_pid;
+    int * arr_richieste, * arr_offerte;
+    double * arr_pos_porti, * arr_pos_navi;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
     struct merci * tipi_merci;
-    char buf_idsem[50], buf_4harbour[50], buf_shm_merci[50];
-    int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI+1] = {0}, flag = 1;
+    int flag = 1;
+    char buf_4harbour[50];
 
     char* args_navi[] = {"./navi", NULL};
-    char* args_porti[] = {"./porti", NULL};
+    char* args_porti[] = {"./porti", "      ", NULL};
     char* args_meteo[] = {"./meteo", NULL};
     char* args_merci[] = {"./merci", NULL};
+    
     pid_navi = malloc(sizeof(pid_navi) * SO_NAVI);
     pid_porti = malloc(sizeof(pid_porti) * SO_PORTI);
-
+    arr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
+    arr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
+    arr_pos_porti = malloc(sizeof(double) * (SO_PORTI * 3));
+    arr_pos_navi = malloc(sizeof(double) * (SO_PORTI * 3));
 
     srand(getpid());
 
@@ -41,25 +48,44 @@ int main(int argc, char * argv[]){
     sa.sa_handler = handler_navi_porti;
     sigaction(SIGUSR1, &sa, NULL);*/
 
-    /*Sezione creazione shared memory per merci*/
-    shm_merci_id = shmget(getpid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
-    tipi_merci = shmat(shm_merci_id, NULL, 0);
-    sprintf(buf_shm_merci, "%d", shm_merci_id);
-    args_merci[1] = buf_shm_merci;
-    /*Fine Sezione*/
+    /**
+     * parent pid +0: shared memory fill
+     * parent pid +1: shared memory merci
+     * parent pid +2: shared memory richieste
+     * parend pid +3: shared memory offerte
+     * parent pid +4: shared memory posizione navi
+     * parent pid +5: shared memory posizione porti
+    */
 
+    /* Sezione creazione shared memory per merci */
+        shm_merci_id = shmget(getpid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
+        tipi_merci = shmat(shm_merci_id, NULL, 0);
     /*Sezione creazione semaforo per configurazione*/
-    sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
-    sem_set_val(sem_config_id, 0, (SO_NAVI+SO_PORTI+1));
-    sprintf(buf_idsem, "%d", sem_config_id);
-    args_navi[1] = buf_idsem;
-    args_porti[1] = buf_idsem;
-    args_meteo[1] = buf_idsem;
-    /*Fine Sezione*/
+
+    /*Sezione creazione shared memory per offerte e richieste*/
+        shm_richieste_id = shmget(getpid()+2, sizeof(int)* ((SO_MERCI+1)*SO_PORTI), 0600 | IPC_CREAT);
+        arr_richieste = shmat(shm_richieste_id, NULL, 0);
+
+        shm_offerte_id = shmget(getpid()+3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
+        arr_offerte = shmat(shm_offerte_id, NULL, 0);
+    /*fIne Sezione creazione shared memory per offerte e richieste*/
+
+    /*Sezione creazione shared memory per posizione navi e porti*/
+        /*shm_pos_navi_id = shmget(getpid() + 4, sizeof(double)* (SO_NAVI * 3), 0600 | IPC_CREAT);
+        arr_pos_navi = shmat(shm_pos_navi_id, NULL, 0);*/
+
+        shm_pos_porti_id = shmget(getpid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
+        arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
+    /*fIne Sezione creazione shared memory per posizione navi e porti*/
+   
+    /*Sezione creazione semaforo per configurazione*/
+        sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
+        sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
+    /*Fine Sezione crezione semaforo per configuazione*/
 
     switch(fork()){
         case 0:
-                execve("./merci", args_merci , NULL);
+                execve("../bin/merci", args_merci , NULL);
                 exit(0);
             break;
         default:
@@ -86,14 +112,19 @@ int main(int argc, char * argv[]){
                     exit(-1);
                 break;
             case 0:
-                execve("./navi", args_navi , NULL);
+                execve("../bin/navi", args_navi , NULL);
                 exit(0);
                
             break;
             default:
+                /*arr_pos_navi[i*SO_NAVI] = pid_navi[i];*/
             break;
         }
     }
+
+    
+
+    printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
@@ -108,20 +139,21 @@ int main(int argc, char * argv[]){
                 break;
             case 0:
                 sprintf(buf_4harbour, "%d", (i+1));
-                args_porti[2] = buf_4harbour;
-                execve("./porti", args_porti, NULL);
+                args_porti[1] = buf_4harbour;
+                execve("../bin/porti", args_porti, NULL);
                 exit(0);
-            default:    
+            default:
+                arr_pos_porti[i * SO_PORTI] = pid_porti[i];    
             break;
         }
     }
     
-    args_porti[2] = " ";
+    args_porti[1] = " ";
     
     /**
      * Creo i restanti porti
     */
-    
+
     for(i = 4; i < SO_PORTI; i++){
         switch (pid_porti[i] = fork())
         {
@@ -130,35 +162,47 @@ int main(int argc, char * argv[]){
                     exit(-1);
                 break;
             case 0:
-                execve("./porti", args_porti , NULL);
+                execve("../bin/porti", args_porti , NULL);
                 exit(0);
             default:
+                arr_pos_porti[i * SO_PORTI] = pid_porti[i];
             break;
         }
-
     }
-    
-    gen_richiesta_offerta(matr_richieste, matr_offerte, pid_porti, 1);
 
+    gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
+    
     switch(pid_meteo = fork()){
         case -1:
             printf("C'è stato un errore nel fork per il meteo: %s", strerror(errno));
             exit(-1);
             break;
         case 0:
-            execve("./meteo", args_meteo , NULL);
+            execve("../bin/meteo", args_meteo , NULL);
             exit(0);
         default:
         break;
     }
 
-   while(semctl(sem_config_id, 0, GETVAL) != 0);
-   
-   for(i = 0; i < SO_PORTI; i++){
-        kill(pid_porti[i], SIGUSR1);
-   }
+    printf("[SISTEMA]\t -> \t METEO PRONTO\n");
 
-   /*Sezione creazione shared memory per allocare le merci ai porti*/
+    while(semctl(sem_config_id, 0, GETVAL) != 0){
+    };
+
+    
+
+
+    for(i = 0; i < SO_PORTI; i++){
+        kill(pid_porti[i], SIGUSR1);
+    }
+
+    for(i = 0; i < SO_NAVI; i++){
+        kill(pid_navi[i], SIGUSR1);
+    }
+
+   printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
+
+   /*Sezione creazione shared memory per fill*/
     shmget(getpid(), 4, 0600 | IPC_CREAT);
     /*Fine Sezione*/
 
@@ -166,8 +210,14 @@ int main(int argc, char * argv[]){
 
     shmdt (tipi_merci);
     shmctl(shm_merci_id , IPC_RMID , NULL);
-}
 
+
+    for(i = 0; i < SO_PORTI;i++){
+        printf("PID -> %f, POSX -> %f, POSY -> %f\n", arr_pos_porti[i*SO_PORTI], arr_pos_porti[i*SO_PORTI+1], arr_pos_porti[i*SO_PORTI+2]);
+    }
+    
+
+}
 
 /**
  * Generazione matrice offerte, tutte le offerte vengono generate in una matrice di 0 e 1 la quale e' la copia della matrice delle richieste ma invertita
@@ -183,9 +233,9 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
     for(i = 0; i < SO_PORTI-1; i++){
         matr_offerte[i][0] = pid_porti[i];
         for(j = 1; j < SO_MERCI; j++){
-            rand_pid = rand() % 2;
+            rand_pid = rand() % 101;
             matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
-            if(!rand_pid){
+            if(rand_pid < 30){
                 matr_offerte[i][j] = 0;
             }
         }
@@ -235,18 +285,6 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
         matr_offerte[SO_PORTI-1][col_merce_offerte] = 1;
         flag++;
     }
-    
-
-    if(print){
-        printf("\tOFFERTE\n\n");
-        for(j = 0; j < SO_PORTI; j++){
-            printf("Pid: %d ", matr_offerte[j][0]);
-            for(k = 1; k < SO_MERCI + 1; k++){
-                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[j][k]);
-            }
-            printf("\n");
-        }
-    }
 }
     
 /**
@@ -257,8 +295,9 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
  * da almeno un porto
 */
 
-void gen_richiesta_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI + 1], int * pid_porti, int print){
+void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offerte, int print){
     int col_merce_richiesta, arr_control[SO_MERCI] = {0}, counter = 0;
+    int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI + 1] = {0};
     int i, j, k, z;
     int sum = 0, flag = 0, num_richieste;
     
@@ -330,6 +369,25 @@ void gen_richiesta_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_of
         flag++;
     }
 
+    
+
+    /**
+     * Una volta generata la tabella della richieste vado a generare la tabella delle offerte
+    */
+    
+    gen_offerta(matr_richieste, matr_offerte,pid_porti, print);
+    /**
+     * Generate le due matrici 
+    */
+    i = 0;
+    for(j = 0; j < SO_PORTI; j++){
+        for(k = 0; k < SO_MERCI+1; k++){
+            arr_richieste[i] = matr_richieste[j][k];
+            arr_offerte[i] = matr_offerte[j][k];
+            i++;
+        }
+    }
+
     if(print){
         printf("\tRICHIESTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
@@ -340,10 +398,15 @@ void gen_richiesta_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_of
             printf("\n");
         }
         printf("\n");
-    }
 
-    /**
-     * Una volta generata la tabella della richieste vado a generare la tabella delle offerte
-    */
-    gen_offerta(matr_richieste, matr_offerte,pid_porti, print);
+        printf("\tOFFERTE\n\n");
+        for(j = 0; j < SO_PORTI; j++){
+            printf("Pid: %d ", matr_offerte[j][0]);
+            for(k = 1; k < SO_MERCI + 1; k++){
+                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[j][k]);
+            }
+            printf("\n");
+        }
+    }
+    printf("[SISTEMA]\t -> \t MODULI DOMANDA/OFFERTA GENERATI CORRETTAMENTE\n");
 }

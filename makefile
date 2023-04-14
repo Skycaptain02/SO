@@ -1,24 +1,24 @@
-master: master.c
-	gcc -std=c89 -Wpedantic master.c -o master
+master: ./src/master.c
+	gcc -std=c89 -Wpedantic ./src/master.c ./lib/ipc.o -o ./bin/master
 
 navi: navi.c
-	gcc -std=c89 -Wpedantic navi.c -o navi
+	gcc -std=c89 -Wpedantic ./src/navi.c ./lib/ipc.o -o ./bin/navi
 
 porti: porti.c
-	gcc -std=c89 -Wpedantic porti.c -o porti
+	gcc -std=c89 -Wpedantic ./src/porti.c ./lib/ipc.o -o ./bin/porti
 
 meteo: meteo.c
-	gcc -std=c89 -Wpedantic meteo.c -o meteo
+	gcc -std=c89 -Wpedantic ./src/meteo.c ./lib/ipc.o -o ./bin/meteo
 
 ipc: ipc.c
-	gcc -std=c89 -Wpedantic -c ipc.c
+	gcc -std=c89 -Wpedantic -c ./lib/ipc.c
 
 merci: merci.c
-	gcc -std=c89 -Wpedantic merci.c -o merci
+	gcc -std=c89 -Wpedantic ./src/merci.c ./lib/ipc.o -o ./bin/merci
 	
-all: master.c navi.o
-	gcc -std=c89 -Wpedantic master.c ipc.o -o master
-	gcc -std=c89 -Wpedantic navi.c ipc.o -o navi
-	gcc -std=c89 -Wpedantic porti.c ipc.o -o porti
-	gcc -std=c89 -Wpedantic meteo.c ipc.o -o meteo
-	gcc -std=c89 -Wpedantic merci.c -o merci
+all: ./src/master.c
+	gcc -std=c89 -Wpedantic ./src/master.c ./lib/ipc.o -o ./bin/master
+	gcc -std=c89 -Wpedantic ./src/navi.c ./lib/ipc.o -o ./bin/navi
+	gcc -std=c89 -Wpedantic ./src/porti.c ./lib/ipc.o -o ./bin/porti
+	gcc -std=c89 -Wpedantic ./src/meteo.c ./lib/ipc.o -o ./bin/meteo
+	gcc -std=c89 -Wpedantic ./src/merci.c -o ./bin/merci
