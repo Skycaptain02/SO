@@ -13,9 +13,14 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
 
     int i, j, k, status, errno;
-    int shm_pos_navi_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, sem_config_id;
-    int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; /*semafori per generare i primi 4 porti, uno per lato*/
-    int ric_1, ric_2, rand_pid;
+    int shm_pos_navi_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id; 
+    int sem_config_id, sem_offerte_richieste_id;
+
+    /**
+     * semafori per generare i primi 4 porti, uno per lato
+    */
+    int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; 
+
     int * arr_richieste, * arr_offerte;
     double * arr_pos_porti, * arr_pos_navi;
 
@@ -81,6 +86,7 @@ int main(int argc, char * argv[]){
     /*Sezione creazione semaforo per configurazione*/
         sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
         sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
+        
     /*Fine Sezione crezione semaforo per configuazione*/
 
     switch(fork()){
@@ -153,7 +159,7 @@ int main(int argc, char * argv[]){
     /**
      * Creo i restanti porti
     */
-
+  
     for(i = 4; i < SO_PORTI; i++){
         switch (pid_porti[i] = fork())
         {
@@ -171,6 +177,22 @@ int main(int argc, char * argv[]){
     }
 
     gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
+
+    /* Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
+     * sono state generate. 
+    */
+
+    /*
+    * Facendo alcuni test, spostanto la funzione gen_richiesta_offerta l'ungo il codice del master l'unico posto
+    * in cui quest'ultima può essere messa e' subito dopo la generazione dei porti
+    * il problema sta nel fatto che, noi a priori non sappiamo quando la generazione effettivamente verrà fatta,
+    * quindi bisogna implementare prima un semaforo di controllo, poi si può assegnare all'interno del processo porto
+    * due array per la generazione delle offerte e delle richieste. In totale avremo bisogno di 4 array, 2 in il cui valore 
+    * sarà quello ottenuto dalla funzione gen_richiesta_offera, gli altri due avranno come contenuto l'effettivo "magazzino"
+    * del porto in questione tra offerte e richieste.
+    */
+
+
     
     switch(pid_meteo = fork()){
         case -1:
@@ -186,11 +208,7 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t METEO PRONTO\n");
 
-    while(semctl(sem_config_id, 0, GETVAL) != 0){
-    };
-
-    
-
+    while(semctl(sem_config_id, 0, GETVAL) != 0);
 
     for(i = 0; i < SO_PORTI; i++){
         kill(pid_porti[i], SIGUSR1);

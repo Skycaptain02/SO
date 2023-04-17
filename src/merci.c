@@ -5,7 +5,7 @@ int main(int argc, char * argv[]){
     struct merci * tipi_merci;
 
     srand(getpid());
-    shm_id = shmget(getppid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
+    shm_id = shmget(getppid() + 1, sizeof(tipi_merci) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_id, NULL, 0);
 
     for(i = 0; i < SO_MERCI; i++){ 
