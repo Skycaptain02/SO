@@ -3,6 +3,7 @@
 
 void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offerte, int print);
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
+void check_inputs();
 
 void handler(int signal){
     
@@ -25,14 +26,14 @@ int main(int argc, char * argv[]){
     double * arr_pos_porti, * arr_pos_navi;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
-    struct merci * tipi_merci;
+    merci * tipi_merci;
     int flag = 1;
     char buf_4harbour[50];
 
-    char* args_navi[] = {"./navi", NULL};
-    char* args_porti[] = {"./porti", "      ", NULL};
-    char* args_meteo[] = {"./meteo", NULL};
-    char* args_merci[] = {"./merci", NULL};
+    char * args_navi[] = {"./navi", NULL};
+    char * args_porti[] = {"./porti", "      ", NULL};
+    char * args_meteo[] = {"./meteo", NULL};
+    char * args_merci[] = {"./merci", NULL};
     
     pid_navi = malloc(sizeof(pid_navi) * SO_NAVI);
     pid_porti = malloc(sizeof(pid_porti) * SO_PORTI);
@@ -40,15 +41,11 @@ int main(int argc, char * argv[]){
     arr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     arr_pos_porti = malloc(sizeof(double) * (SO_PORTI * 3));
     arr_pos_navi = malloc(sizeof(double) * (SO_PORTI * 3));
-    tipi_merci = malloc(6 * sizeof(tipi_merci));
+    tipi_merci = malloc(6 * sizeof(struct merci));
 
     srand(getpid());
 
-    if(SO_PORTI < 4){
-        printf("[SISTEMA]\t -> \t IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, ALMENO 4\n");
-        exit(-1);
-    }
-    
+    check_inputs();
 
     /*bzero(&sa, sizeof(sa));
     sa.sa_handler = handler_navi_porti;
@@ -57,7 +54,6 @@ int main(int argc, char * argv[]){
     /**
      * SHARED MEMORY
      * 
-     * parent pid + 0: shared memory fill
      * parent pid + 1: shared memory merci
      * parent pid + 2: shared memory richieste
      * parend pid + 3: shared memory offerte
@@ -73,17 +69,16 @@ int main(int argc, char * argv[]){
    */
 
     /* Sezione creazione shared memory per merci */
-        shm_merci_id = shmget(getpid() + 1, sizeof(tipi_merci[0]) * SO_MERCI, 0600 | IPC_CREAT);
+        shm_merci_id = shmget(getpid() + 1, sizeof(struct merci) * SO_MERCI, 0600 | IPC_CREAT);
         tipi_merci = shmat(shm_merci_id, NULL, 0);
         
-        printf("Shm_id_master -> %d\n", shm_merci_id);
     /*Sezione creazione semaforo per configurazione*/
 
     /*Sezione creazione shared memory per offerte e richieste*/
-        shm_richieste_id = shmget(getpid()+2, sizeof(int)* ((SO_MERCI+1)*SO_PORTI), 0600 | IPC_CREAT);
+        shm_richieste_id = shmget(getpid() + 2, sizeof(int)* ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
         arr_richieste = shmat(shm_richieste_id, NULL, 0);
 
-        shm_offerte_id = shmget(getpid()+3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
+        shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
         arr_offerte = shmat(shm_offerte_id, NULL, 0);
     /*fIne Sezione creazione shared memory per offerte e richieste*/
 
@@ -113,40 +108,7 @@ int main(int argc, char * argv[]){
         break;
     }
 
-    while(wait(NULL) != -1){
-        /*printf("Ritornato figlio merci\n");*/
-    }
-
-   
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Tipo: %d, Peso: %d, Vita: %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
-    }
-
-    /**
-     * Generazionie di tutte le navi
-    */
-
-    for(i = 0; i < SO_NAVI; i++){
-        switch (pid_navi[i] = fork())
-        {
-            case -1:
-                    printf("C'è stato un errore nel fork per le navi: %s", strerror(errno));
-                    exit(-1);
-                break;
-            case 0:
-                execve("../bin/navi", args_navi , NULL);
-                exit(0);
-               
-            break;
-            default:
-                /*arr_pos_navi[i*SO_NAVI] = pid_navi[i];*/
-            break;
-        }
-    }
-
-    
-
-    printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
+    while(wait(NULL) != -1);
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
@@ -188,12 +150,39 @@ int main(int argc, char * argv[]){
                 exit(0);
             default:
                 arr_pos_porti[i * SO_PORTI] = pid_porti[i];
+                printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
             break;
         }
     }
 
     gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
     sem_reserve(sem_offerte_richieste_id, 0);
+
+    for(i = 0; i < SO_PORTI;i++){
+        printf("PID -> %f, POSX -> %f, POSY -> %f\n", arr_pos_porti[i*SO_PORTI], arr_pos_porti[i*SO_PORTI+1], arr_pos_porti[i*SO_PORTI+2]);
+    }
+    
+    exit(0);
+
+    /**
+     * Generazionie di tutte le navi
+    */
+    
+    for(i = 0; i < SO_NAVI; i++){
+        switch (pid_navi[i] = fork()){
+            case -1:
+                    printf("C'è stato un errore nel fork per le navi: %s", strerror(errno));
+                    exit(-1);
+                break;
+            case 0:
+                execve("../bin/navi", args_navi , NULL);
+                exit(- 1);
+            break;
+            default:
+                printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
+            break;
+        }
+    }
 
     /**
      * Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
@@ -231,12 +220,6 @@ int main(int argc, char * argv[]){
     /*Fine Sezione*/
 
     while(wait(NULL) != -1);
-
-
-    for(i = 0; i < SO_PORTI;i++){
-        printf("PID -> %f, POSX -> %f, POSY -> %f\n", arr_pos_porti[i*SO_PORTI], arr_pos_porti[i*SO_PORTI+1], arr_pos_porti[i*SO_PORTI+2]);
-    }
-    
 
 }
 
@@ -430,4 +413,58 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
         }
     }
     printf("[SISTEMA]\t -> \t MODULI DOMANDA/OFFERTA GENERATI CORRETTAMENTE\n");
+}
+
+void check_inputs(){
+
+    if(SO_PORTI < 4){
+        printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
+        exit(- 1);
+    }
+    else if(SO_NAVI < 0){
+        printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI NAVI INSERITO E' < 0, BISOGNA INSERIRNE ALMENO UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_MIN_VITA > SO_MAX_VITA || SO_MIN_VITA < 0 || SO_MAX_VITA < 0){
+        if(SO_MIN_VITA < 0){
+            printf("[SISTEMA] \t -> \t ERRORE: LA DATA DI SCADENZA MINIMA NON PUO' ESSERE UN NUMERO NEGATIVO\n");
+            exit(- 1);
+        }
+        else if(SO_MAX_VITA < 0){
+            printf("[SISTEMA] \t -> \t ERRORE: LA DATA DI SCADENZA MASSIMA NON PUO' ESSERE UN NUMERO NEGATIVO\n");
+            exit(- 1);
+        }
+        else{
+            printf("[SISTEMA]\t -> \t ERRORE: LA DATA DI SCADENZA MINIMA NON PUO' ESSRE MAGGIORE DELLA SCADENZA MASSIMA\n");
+            exit(- 1);
+        }
+    }
+    else if(SO_LATO <= 0){
+        printf("[SISTEMA]\t ->  \t ERRORE: IL LATO DELLA MAPPA DEVE ESSERE > 0\n");
+        exit(- 1);
+    }
+    else if(SO_SPEED <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DELLE NAVI DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_CAPACITY <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: LA CAPACITA' DELLE NAVI DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_BANCHINE <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: LE BANCHINE PER PORTO DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_FILL <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: SO_FILL DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_LOADSPEED <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DI SCARICO DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
+    else if(SO_DAYS <= 0){
+        printf("[SISTEMA]\t -> \t ERRORE: SO_DAYS DEVE ESSERE UN NUMERO > 0\n");
+        exit(- 1);
+    }
 }

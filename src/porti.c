@@ -76,9 +76,11 @@ int main(int argc, char * argv[]){
     }
     else{
         harbor_pos_x = (rand() % (SO_LATO + 1)) - (SO_LATO / 2);
-        harbor_pos_y = (rand() % (SO_LATO + 1)) - (SO_LATO /2);
+        harbor_pos_y = (rand() % (SO_LATO + 1)) - (SO_LATO / 2);
     }
 
+    shm_pos_id = shmget(getppid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
+    arr_pos = shmat(shm_pos_id, NULL, 0);
 
     /**
      * Porti creati in una posizione casuale della mappa, comunico al master tramite semaforo che tutti i porti sono pronti a comiciare la simulazione
@@ -107,9 +109,6 @@ int main(int argc, char * argv[]){
     shm_offerte_id = shmget(getppid() + 3, sizeof(int) * SO_PORTI * (SO_MERCI + 1), 0600 | IPC_CREAT);
     matr_offerte = shmat(shm_offerte_id, NULL, 0);
 
-    shm_pos_id = shmget(getppid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
-    arr_pos = shmat(shm_pos_id, NULL, 0);
-
     perc_richieste = (rand() % 61) + 40;
 
     for(i = 0; i  < SO_PORTI;i++){
@@ -119,8 +118,8 @@ int main(int argc, char * argv[]){
         }
     }
 
-    request_gen(tipi_merci, matr_richieste, perc_richieste, matr_line, richieste);
-    offer_gen(tipi_merci, matr_offerte, (100 - perc_richieste), matr_line, offerte);
+    /*request_gen(tipi_merci, matr_richieste, perc_richieste, matr_line, richieste)*/
+    /*offer_gen(tipi_merci, matr_offerte, (100 - perc_richieste), matr_line, offerte)*/
 
     pause();
 
@@ -170,11 +169,6 @@ void request_gen(struct merci * tipi_merci, int * request_merci, int perc_richie
                 sleep(1);
             }
         }
-
-        
-
-        
-
     }
 
 

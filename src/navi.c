@@ -14,25 +14,18 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
 
     srand(getpid());
-    
-    /*vado a creare in un punto randomico della mappa la nave*/
-    ship_pos_x = rand() % SO_LATO;
-    ship_pos_y = rand() % SO_LATO;
-
-    /*Sezione creazione semaforo per configurazione*/
-    sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
-    sem_reserve(sem_config_id, 0);
-
-    /*Fine Sezione*/
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler_start;
     sigaction(SIGUSR1, &sa, NULL);
+    
+    sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
+    sem_reserve(sem_config_id, 0);
 
     pause();
 
     shm_pos_porti_id = shmget(getppid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
-    pos_porti = shmat(shm_pos_porti_id, NULL, 0);
+    pos_porti = shmat(shm_pos_porti_id, NULL, 0);  
 
     harbor_des = rand() % SO_PORTI;
 
