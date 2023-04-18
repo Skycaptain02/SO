@@ -40,6 +40,7 @@ int main(int argc, char * argv[]){
     arr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     arr_pos_porti = malloc(sizeof(double) * (SO_PORTI * 3));
     arr_pos_navi = malloc(sizeof(double) * (SO_PORTI * 3));
+    tipi_merci = malloc(6 * sizeof(tipi_merci));
 
     srand(getpid());
 
@@ -72,8 +73,10 @@ int main(int argc, char * argv[]){
    */
 
     /* Sezione creazione shared memory per merci */
-        shm_merci_id = shmget(getpid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
+        shm_merci_id = shmget(getpid() + 1, sizeof(tipi_merci[0]) * SO_MERCI, 0600 | IPC_CREAT);
         tipi_merci = shmat(shm_merci_id, NULL, 0);
+        
+        printf("Shm_id_master -> %d\n", shm_merci_id);
     /*Sezione creazione semaforo per configurazione*/
 
     /*Sezione creazione shared memory per offerte e richieste*/
@@ -103,9 +106,9 @@ int main(int argc, char * argv[]){
 
     switch(fork()){
         case 0:
-                execve("../bin/merci", args_merci , NULL);
-                exit(0);
-            break;
+            execve("../bin/merci", args_merci , NULL);
+            exit(0);
+        break;
         default:
         break;
     }
@@ -114,9 +117,10 @@ int main(int argc, char * argv[]){
         /*printf("Ritornato figlio merci\n");*/
     }
 
-    /*for(i = 0; i < SO_MERCI; i++){
+   
+    for(i = 0; i < SO_MERCI; i++){
         printf("Tipo: %d, Peso: %d, Vita: %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
-    }*/
+    }
 
     /**
      * Generazionie di tutte le navi
@@ -227,9 +231,6 @@ int main(int argc, char * argv[]){
     /*Fine Sezione*/
 
     while(wait(NULL) != -1);
-
-    shmdt (tipi_merci);
-    shmctl(shm_merci_id , IPC_RMID , NULL);
 
 
     for(i = 0; i < SO_PORTI;i++){
