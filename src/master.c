@@ -2,7 +2,7 @@
 #include "../lib/ipc.h"
 
 void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offerte, int print);
-void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print);
+void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int num_merci, int print);
 void check_inputs();
 
 void handler(int signal){
@@ -26,7 +26,7 @@ int main(int argc, char * argv[]){
     double * arr_pos_porti, * arr_pos_navi;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
-    merci * tipi_merci;
+    struct merci * tipi_merci;
     int flag = 1;
     char buf_4harbour[50];
 
@@ -57,8 +57,8 @@ int main(int argc, char * argv[]){
      * parent pid + 1: shared memory merci
      * parent pid + 2: shared memory richieste
      * parend pid + 3: shared memory offerte
-     * parent pid + 4: shared memory posizione navi
-     * parent pid + 5: shared memory posizione porti
+     * parent pid + 4: shared memory posizione porti
+     * parent pid + 5: shared memory posizione navi
     */
 
    /**
@@ -86,7 +86,7 @@ int main(int argc, char * argv[]){
         /*shm_pos_navi_id = shmget(getpid() + 4, sizeof(double)* (SO_NAVI * 3), 0600 | IPC_CREAT);
         arr_pos_navi = shmat(shm_pos_navi_id, NULL, 0);*/
 
-        shm_pos_porti_id = shmget(getpid() + 5, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
+        shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
         arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
     /*fIne Sezione creazione shared memory per posizione navi e porti*/
    
@@ -110,11 +110,15 @@ int main(int argc, char * argv[]){
 
     while(wait(NULL) != -1);
 
+    /*for(i = 0; i < SO_MERCI; i++){
+        printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
+    }*/
+
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
     */
 
-    for(i = 0; i < 4; i++){
+    for(i = 0; i < 1; i++){
         switch (pid_porti[i] = fork())
         {
             case -1:
@@ -150,19 +154,20 @@ int main(int argc, char * argv[]){
                 exit(0);
             default:
                 arr_pos_porti[i * SO_PORTI] = pid_porti[i];
-                printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
             break;
         }
     }
 
+    printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
+
     gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
     sem_reserve(sem_offerte_richieste_id, 0);
 
-    for(i = 0; i < SO_PORTI;i++){
-        printf("PID -> %f, POSX -> %f, POSY -> %f\n", arr_pos_porti[i*SO_PORTI], arr_pos_porti[i*SO_PORTI+1], arr_pos_porti[i*SO_PORTI+2]);
-    }
+    /*for(i = 0; i < SO_PORTI;i++){
+        printf("PID -> %f, POSX -> %f, POSY -> %f\n", arr_pos_porti[i*SO_PORTI], arr_pos_porti[(i*SO_PORTI)+1], arr_pos_porti[(i*SO_PORTI)+2]);
+    }*/
     
-    exit(0);
+    
 
     /**
      * Generazionie di tutte le navi
@@ -179,10 +184,11 @@ int main(int argc, char * argv[]){
                 exit(- 1);
             break;
             default:
-                printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
             break;
         }
     }
+
+    printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
 
     /**
      * Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
@@ -229,14 +235,14 @@ int main(int argc, char * argv[]){
  * Infine si effettua un controllo sull'ultimo porto, in modo che tutte le merci siano offerte almeno una volta
 */
 
-void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int print){
+void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int num_merci, int print){
     int arr_control[SO_MERCI]= {0};
     int i, k, j, flag = 0, sum = 0, col_merce_offerte;
     int rand_pid, counter = SO_PORTI;
 
     for(i = 0; i < SO_PORTI-1; i++){
         matr_offerte[i][0] = pid_porti[i];
-        for(j = 1; j < SO_MERCI; j++){
+        for(j = 1; j < SO_MERCI + 1; j++){
             rand_pid = rand() % 101;
             matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
             if(rand_pid < 30){
@@ -277,7 +283,7 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
     */
 
     flag = counter;
-    for(k = 1; k <= SO_MERCI && flag < SO_MERCI/2; k++){
+    for(k = 1; k <= SO_MERCI && flag < num_merci; k++){
         sum = 0;
         col_merce_offerte = k;
         for(i = 0; i < SO_PORTI-1; i++){
@@ -303,17 +309,27 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
     int col_merce_richiesta, arr_control[SO_MERCI] = {0}, counter = 0;
     int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI + 1] = {0};
     int i, j, k, z;
-    int sum = 0, flag = 0, num_richieste;
+    int sum = 0, flag = 0, num_richieste, num_merci;
+
+    if(SO_MERCI == 1){
+        num_merci = 1;
+    }
+    else{
+        num_merci = SO_MERCI/2;
+    }
+    
+
+    
     
     /**
      * Generazione delle merci richeste dai primi SO_PORTI-1 porti, i controlli effettuati sulla generazione sono: 
-     * 1) che il numero di richieste totali per singola merce non può eccedere SO_MERCI/2
+     * 1) che il numero di richieste totali per singola merce non può eccedere SO_MERCI/2 (num_merci)
      * 2) che la merce non sia già stata richiesta dal porto corrente
     */
            
     for(j = 0; j < SO_PORTI-1; j++){
         matr_richieste[j][0] = pid_porti[j];
-        num_richieste = (rand() % (SO_MERCI/2)) + 1;
+        num_richieste = (rand() % (num_merci)) + 1;
         for(k = 0; k < num_richieste; k++){
             col_merce_richiesta = (rand() % SO_MERCI)+1;
             for(i = 0; i < SO_PORTI-1; i++){
@@ -325,10 +341,22 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
                 for(i = 0; i < SO_PORTI-1; i++){
                     sum += matr_richieste[i][col_merce_richiesta];
                 }
+
+
+
+
+                /*IMPORTANTE, CON SO_MERCI == 1 il programma va in loop qui*/
+
+
+
+
+
             }
             matr_richieste[j][col_merce_richiesta] = 1;
         }
     }
+
+    
 
     /**
      * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata richiesta dai primi SO_PORTI-1 porti
@@ -360,7 +388,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
     */
 
     flag = counter;
-    for(k = 1; k <= SO_MERCI && flag < SO_MERCI/2; k++){
+    for(k = 1; k <= SO_MERCI && flag < num_merci; k++){
         sum = 0;
         col_merce_richiesta = k;
         for(i = 0; i < SO_PORTI-1; i++){
@@ -379,7 +407,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
      * Una volta generata la tabella della richieste vado a generare la tabella delle offerte
     */
     
-    gen_offerta(matr_richieste, matr_offerte,pid_porti, print);
+    gen_offerta(matr_richieste, matr_offerte,pid_porti, num_merci, print);
     /**
      * Generate le due matrici 
     */
@@ -417,7 +445,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
 
 void check_inputs(){
 
-    if(SO_PORTI < 4){
+    if(SO_PORTI < 0){
         printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
         exit(- 1);
     }
@@ -439,8 +467,8 @@ void check_inputs(){
             exit(- 1);
         }
     }
-    else if(SO_LATO <= 0){
-        printf("[SISTEMA]\t ->  \t ERRORE: IL LATO DELLA MAPPA DEVE ESSERE > 0\n");
+    else if(SO_LATO <= 1){
+        printf("[SISTEMA]\t ->  \t ERRORE: IL LATO DELLA MAPPA DEVE ESSERE > 1\n");
         exit(- 1);
     }
     else if(SO_SPEED <= 0){

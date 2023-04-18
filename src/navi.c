@@ -29,7 +29,7 @@ int main(int argc, char * argv[]){
 
     harbor_des = rand() % SO_PORTI;
 
-    printf("[NAVE] -> HARBOR-PID: %f, HARBOR-X: %f, HARBOR-Y: %f\n", pos_porti[harbor_des * SO_PORTI], pos_porti[harbor_des * SO_PORTI + 1], pos_porti[harbor_des * SO_PORTI + 2]);
+    /*printf("[NAVE] -> HARBOR-PID: %f, HARBOR-X: %f, HARBOR-Y: %f\n", pos_porti[harbor_des * SO_PORTI], pos_porti[harbor_des * SO_PORTI + 1], pos_porti[harbor_des * SO_PORTI + 2]);*/
 
 
 
