@@ -16,7 +16,7 @@ int main(int argc, char * argv[]){
 
     struct sigaction sa;
     int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id;
-    int sem_config_id;
+    int sem_config_id, sem_offerte_richieste_id;
     struct merci * tipi_merci;
     int * richieste, * offerte;
     double * arr_pos;
@@ -26,6 +26,10 @@ int main(int argc, char * argv[]){
     offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
 
     srand(getpid());
+
+    bzero(&sa, sizeof(sa));
+    sa.sa_handler = handler_start;
+    sigaction(SIGUSR1, &sa, NULL);
 
 /**
  * Creo i primi 4 porti su i 4 lati della mappa
@@ -74,28 +78,17 @@ int main(int argc, char * argv[]){
     sem_reserve(sem_config_id, 0);
 
 
-    bzero(&sa, sizeof(sa));
-    sa.sa_handler = handler_start;
-    sigaction(SIGUSR1, &sa, NULL);
-
-    pause();
-
     shm_fill_id = shmget(getppid(), 4, 0600 | IPC_CREAT);
     fill = shmat(shm_fill_id, NULL, 0);
 
     shm_merci_id = shmget(getppid() + 1, sizeof(tipi_merci) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_merci_id, NULL, 0);
 
+    sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
+    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
 
-    /**
-     * Qui bisogna attendere la generazione delle due matrici
-     * 
-     * shm_richieste_id = shmget(getppid() + 2, sizeof(SO_PORTI) * (SO_MERCI + 1), 0600 | IPC_CREAT);
-     * richieste = shmat(shm_richieste_id, NULL, 0);
-     * 
-     * shm_offerte_id = shmget(getppid() + 3, sizeof(SO_PORTI) * (SO_MERCI + 1), 0600 | IPC_CREAT);
-     * offerte = shmat(shm_offerte_id, NULL, 0);
-    */
+    pause();
+
 
     /**
      * Creazione e allocazione in shared memory dell'array il cui contenuto corrisponderà alla posizione 

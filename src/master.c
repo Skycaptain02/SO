@@ -54,13 +54,22 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR1, &sa, NULL);*/
 
     /**
-     * parent pid +0: shared memory fill
-     * parent pid +1: shared memory merci
-     * parent pid +2: shared memory richieste
-     * parend pid +3: shared memory offerte
-     * parent pid +4: shared memory posizione navi
-     * parent pid +5: shared memory posizione porti
+     * SHARED MEMORY
+     * 
+     * parent pid + 0: shared memory fill
+     * parent pid + 1: shared memory merci
+     * parent pid + 2: shared memory richieste
+     * parend pid + 3: shared memory offerte
+     * parent pid + 4: shared memory posizione navi
+     * parent pid + 5: shared memory posizione porti
     */
+
+   /**
+    * SEMAFORI
+    * 
+    * parent pid + 0 semaforo configuarazione
+    * parent pid + 1 semaforo creazione richieste/offerte
+   */
 
     /* Sezione creazione shared memory per merci */
         shm_merci_id = shmget(getpid()+1, sizeof(tipi_merci)*SO_MERCI, 0600 | IPC_CREAT);
@@ -83,9 +92,12 @@ int main(int argc, char * argv[]){
         arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
     /*fIne Sezione creazione shared memory per posizione navi e porti*/
    
-    /*Sezione creazione semaforo per configurazione*/
+    /*Sezione creazione semafori per configurazione*/
         sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
         sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
+
+        sem_offerte_richieste_id = semget(getpid() + 1, 1, 0600 | IPC_CREAT);
+        sem_set_val(sem_offerte_richieste_id, 0, 1);
         
     /*Fine Sezione crezione semaforo per configuazione*/
 
@@ -177,23 +189,13 @@ int main(int argc, char * argv[]){
     }
 
     gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
+    sem_reserve(sem_offerte_richieste_id, 0);
 
-    /* Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
+    /**
+     * Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
      * sono state generate. 
     */
-
-    /*
-    * Facendo alcuni test, spostanto la funzione gen_richiesta_offerta l'ungo il codice del master l'unico posto
-    * in cui quest'ultima può essere messa e' subito dopo la generazione dei porti
-    * il problema sta nel fatto che, noi a priori non sappiamo quando la generazione effettivamente verrà fatta,
-    * quindi bisogna implementare prima un semaforo di controllo, poi si può assegnare all'interno del processo porto
-    * due array per la generazione delle offerte e delle richieste. In totale avremo bisogno di 4 array, 2 in il cui valore 
-    * sarà quello ottenuto dalla funzione gen_richiesta_offera, gli altri due avranno come contenuto l'effettivo "magazzino"
-    * del porto in questione tra offerte e richieste.
-    */
-
-
-    
+ 
     switch(pid_meteo = fork()){
         case -1:
             printf("C'è stato un errore nel fork per il meteo: %s", strerror(errno));
