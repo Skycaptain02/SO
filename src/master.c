@@ -12,7 +12,7 @@ void handler(int signal){
 int main(int argc, char * argv[]){
 
     struct sigaction sa;
-    int i, j, k, status, errno;
+    int i, j, k, status, errno, z;
 
     int shm_pos_navi_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id; 
     int sem_config_id, sem_offerte_richieste_id;
@@ -216,8 +216,10 @@ int main(int argc, char * argv[]){
 
     */
     i = 0;
+    k = 0;
     while(i != SO_DAYS){
-        porti_selezionati = (rand() % SO_PORTI) + 1;
+
+        porti_selezionati = (rand() % (SO_PORTI-3))+4;
         porto_scelto = rand() % SO_PORTI;
 
         if(i == 0){
@@ -225,8 +227,10 @@ int main(int argc, char * argv[]){
             porti_random = malloc(sizeof(int) * porti_selezionati);
         }
         else{
-           porti_random = realloc(porti_random, sizeof(int) * porti_selezionati);
+           porti_random = malloc(sizeof(int) * porti_selezionati);
         }
+
+        
 
         while(j != SO_PORTI){
             random_index[j] = j;
@@ -236,9 +240,7 @@ int main(int argc, char * argv[]){
             }
             j++;
         }
-
-        j = 0;
-        k = 0;
+        
         
         for(k = 0; k < porti_selezionati; k++){
             flag = 1;
@@ -247,33 +249,29 @@ int main(int argc, char * argv[]){
                     porti_random[k] = random_index[porto_scelto];
                     random_index[porto_scelto] = -1;
                     flag = 0;
+
                 }
                 else{
-                    porto_scelto = rand() % SO_PORTI;
+                    porto_scelto = rand() % SO_PORTI;;
                 }
-                for(i = 0;i < SO_PORTI; i++){
-                    printf("%d -> ", random_index[i]);
-                }
-                printf("AO\n");
-                printf("\n");
-                for(i = 0;i < porti_selezionati; i++){
-                    printf("%d -> ", porti_random[i]);
-                }
-                printf("AO2\n");
             }
-            sleep(5);
+            
         }
 
-        printf("GIORNO -> [%d]\n", ++i);
-        i--;
-        printf("%d -> PORTI DA SCEGLIERE\n", porti_selezionati);
+        printf("GIORNO -> [%d]\n", (i+1));
+        i++;
         for(j = 0; j < porti_selezionati; j++){
             kill(pid_porti[porti_random[j]], SIGUSR2);
         }
-        i++;
 
-        sleep(1);
+        j = 0;
+        k = 0;
+
+        sleep(4);
+        free(porti_random);
     }
+
+    printf("Finita Simulazione\n");
 
 
 
@@ -495,7 +493,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
 
 void check_inputs(){
 
-    if(SO_PORTI < 0){
+    if(SO_PORTI < 4){
         printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
         exit(- 1);
     }
