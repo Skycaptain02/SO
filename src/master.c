@@ -12,20 +12,21 @@ void handler(int signal){
 int main(int argc, char * argv[]){
 
     struct sigaction sa;
-    int i, j, k, status, errno, z;
+    int i, j, k, z, status, errno;
 
-    int shm_pos_navi_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id; 
+    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id; 
     int sem_config_id, sem_offerte_richieste_id;
     int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; 
 
     int * arr_richieste, * arr_offerte;
     int * porti_random, * random_index;
     double * arr_pos_porti, * arr_pos_navi;
+    int * porti_selezionati;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
     merci * tipi_merci;
 
-    int porto_scelto, porti_selezionati;
+    int porto_scelto; 
     int flag = 1;
     char buf_4harbour[50];
 
@@ -40,7 +41,8 @@ int main(int argc, char * argv[]){
     arr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     arr_pos_porti = malloc(sizeof(double) * (SO_PORTI * 3));
     arr_pos_navi = malloc(sizeof(double) * (SO_PORTI * 3));
-    tipi_merci = malloc(6 * sizeof(struct merci));
+    tipi_merci = malloc(6 * sizeof(merci));
+    porti_selezionati = malloc(sizeof(int));
 
     srand(getpid());
 
@@ -57,7 +59,7 @@ int main(int argc, char * argv[]){
      * parent pid + 2: shared memory richieste
      * parend pid + 3: shared memory offerte
      * parent pid + 4: shared memory posizione porti
-     * parent pid + 5: shared memory posizione navi
+     * parent pid + 5: shared memory gestione generazione offerte e richieste dai porti
     */
 
    /**
@@ -81,21 +83,22 @@ int main(int argc, char * argv[]){
         arr_offerte = shmat(shm_offerte_id, NULL, 0);
     /*fIne Sezione creazione shared memory per offerte e richieste*/
 
-    /*Sezione creazione shared memory per posizione navi e porti*/
-        /*shm_pos_navi_id = shmget(getpid() + 4, sizeof(double)* (SO_NAVI * 3), 0600 | IPC_CREAT);
-        arr_pos_navi = shmat(shm_pos_navi_id, NULL, 0);*/
-
+    /*Sezione creazione shared memeory per gestire la posizione dei porti creati*/
         shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
         arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
-    /*fIne Sezione creazione shared memory per posizione navi e porti*/
-   
+    /*fine Sezione creazione shared memory per posizione porti*/
+
+    /*Sezione creazione shared memory per la gestione della generazione delle richieste e offerte per porti*/
+        shm_porti_selezionati_id = shmget(getpid() + 5, sizeof(int), 0600 | IPC_CREAT);
+        porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
+    /*fine sezione creazione shared memory per la generazione delle richieste e offerte per i porti*/
+
     /*Sezione creazione semafori per configurazione*/
         sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
         sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
 
         sem_offerte_richieste_id = semget(getpid() + 1, 1, 0600 | IPC_CREAT);
         sem_set_val(sem_offerte_richieste_id, 0, 1);
-        
     /*Fine Sezione crezione semaforo per configuazione*/
 
     switch(fork()){
@@ -162,7 +165,6 @@ int main(int argc, char * argv[]){
     gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
     sem_reserve(sem_offerte_richieste_id, 0);
     
-
     /**
      * Generazionie di tutte le navi
     */
@@ -204,84 +206,81 @@ int main(int argc, char * argv[]){
     printf("[SISTEMA]\t -> \t METEO PRONTO\n");
 
     while(semctl(sem_config_id, 0, GETVAL) != 0);
-    /*
 
-    for(i = 0; i < SO_PORTI; i++){
-        kill(pid_porti[i], SIGUSR1);
-    }
-
-    for(i = 0; i < SO_NAVI; i++){
-        kill(pid_navi[i], SIGUSR1);
-    }
-
-    */
     i = 0;
     k = 0;
     while(i != SO_DAYS){
-
-        porti_selezionati = (rand() % (SO_PORTI-3))+4;
+        * porti_selezionati = (rand() % (SO_PORTI-3))+4;
+        printf("AO -> %d\n", * porti_selezionati);
         porto_scelto = rand() % SO_PORTI;
 
         if(i == 0){
             random_index = malloc(sizeof(int) * SO_PORTI);
-            porti_random = malloc(sizeof(int) * porti_selezionati);
+            porti_random = malloc(sizeof(int) * (* porti_selezionati));
         }
         else{
-           porti_random = malloc(sizeof(int) * porti_selezionati);
+           porti_random = malloc(sizeof(int) * (* porti_selezionati));
         }
-
-        
 
         while(j != SO_PORTI){
             random_index[j] = j;
-            if(k < porti_selezionati){
+            if(k < * porti_selezionati){
                 porti_random[k] = -1;
                 k++;
             }
             j++;
         }
-        
-        
-        for(k = 0; k < porti_selezionati; k++){
+
+        for(k = 0; k < * porti_selezionati; k++){
             flag = 1;
             while(flag){
                 if(random_index[porto_scelto] != -1 && porti_random[k] == -1){
                     porti_random[k] = random_index[porto_scelto];
                     random_index[porto_scelto] = -1;
                     flag = 0;
-
                 }
                 else{
-                    porto_scelto = rand() % SO_PORTI;;
+                    porto_scelto = rand() % SO_PORTI;
                 }
             }
-            
         }
-
         printf("GIORNO -> [%d]\n", (i+1));
         i++;
-        for(j = 0; j < porti_selezionati; j++){
+        for(j = 0; j < * porti_selezionati; j++){
             kill(pid_porti[porti_random[j]], SIGUSR2);
         }
 
         j = 0;
         k = 0;
 
-        sleep(4);
+        sleep(1);
         free(porti_random);
     }
 
-    printf("Finita Simulazione\n");
-
-
-
-
-   /*Sezione creazione shared memory per fill*/
-    shmget(getpid(), 4, 0600 | IPC_CREAT);
-    /*Fine Sezione*/
-
     while(wait(NULL) != -1);
 
+    shmdt(porti_selezionati);
+    shmdt(arr_pos_porti);
+    shmdt(tipi_merci);
+    shmdt(arr_richieste);
+    shmdt(arr_offerte);
+
+    shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
+    shmctl(shm_pos_porti_id, IPC_RMID, NULL);
+    shmctl(shm_merci_id, IPC_RMID, NULL);
+    shmctl(shm_richieste_id, IPC_RMID, NULL);
+    shmctl(shm_offerte_id, IPC_RMID, NULL);
+
+    free(pid_navi);
+    free(pid_porti);
+    free(arr_richieste);
+    free(arr_offerte);
+    free(arr_pos_porti);
+    free(arr_pos_navi);
+    free(tipi_merci);
+    free(porti_selezionati);
+
+    printf("Finita Simulazione\n");
 }
 
 /**

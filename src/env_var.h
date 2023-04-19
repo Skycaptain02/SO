@@ -16,8 +16,8 @@
 #include <signal.h>
 
 
-#define SO_NAVI 10
-#define SO_PORTI 4
+#define SO_NAVI 0
+#define SO_PORTI 10
 #define SO_MERCI 6
 #define SO_SIZE 5
 #define SO_MIN_VITA 1

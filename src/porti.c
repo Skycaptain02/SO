@@ -1,8 +1,8 @@
 #include "env_var.h"
 #include "../lib/ipc.h"
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local);
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local);
+void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati);
+void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati);
 
 int riga_request = 0;
 int riga_offer = 0;
@@ -11,10 +11,16 @@ merci * tipi_merce;
 merci * merci_richieste_local;
 merci * merci_offerte_local;
 
+
 void handler_start(int signal){
+    int shm_porti_selezionati_id;
+    int * porti_selezionati;
+    shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
+    porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
+
     switch(signal){
         case SIGUSR2:
-            offer_gen(tipi_merce, merci_offerte_local);  
+            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati);  
         break;
     }
 }
@@ -28,7 +34,7 @@ int main(int argc, char * argv[]){
     int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte;
-    int * matr_richieste, * matr_offerte;
+    int * matr_richieste, * matr_offerte, * porti_selezionati;
     
     double * arr_pos;
     int i, matr_line;
@@ -36,6 +42,7 @@ int main(int argc, char * argv[]){
     matr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     matr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     arr_pos = malloc(sizeof(double) * (SO_PORTI * 3));
+    porti_selezionati = malloc(sizeof(int));
 
     merci_richieste_local = malloc(100 * sizeof(merci));
 
@@ -121,6 +128,7 @@ int main(int argc, char * argv[]){
     shm_offerte_id = shmget(getppid() + 3, sizeof(int) * SO_PORTI * (SO_MERCI + 1), 0600 | IPC_CREAT);
     matr_offerte = shmat(shm_offerte_id, NULL, 0);
 
+
     /*request_gen(tipi_merce, matr_richieste, perc_richieste, matr_line, merci_richieste_local);*/
     /*offer_gen(tipi_merce, matr_offerte, (100 - perc_richieste), matr_line, offerte)*/
 
@@ -130,12 +138,11 @@ int main(int argc, char * argv[]){
     while(1);
 }
 
-
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local){
-    printf("[%d] -> AO\n", getpid());
+void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati){
+    printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);
 }
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local){
+void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati){
     int gen_choiche;
     int fill = 0;
     int i;
@@ -145,7 +152,7 @@ void request_gen(merci * tipi_merce, merci * merci_richieste_local){
     perc_richieste = (rand() % 61) + 40;
 
     if(gen_choiche <= 70){
-        req_fill = ((SO_FILL/SO_DAYS)/SO_PORTI);
+        req_fill = ((SO_FILL/SO_DAYS)/ * porti_selezionati);
         while(1){
             id_merce = rand() % SO_MERCI;
             fill += tipi_merce[id_merce].weight;
