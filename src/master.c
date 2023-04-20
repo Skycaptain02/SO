@@ -20,7 +20,7 @@ int main(int argc, char * argv[]){
 
     int * arr_richieste, * arr_offerte;
     int * porti_random, * random_index;
-    double * arr_pos_porti, * arr_pos_navi;
+    double * arr_pos_porti;
     int * porti_selezionati;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
@@ -37,12 +37,6 @@ int main(int argc, char * argv[]){
     
     pid_navi = malloc(sizeof(pid_navi) * SO_NAVI);
     pid_porti = malloc(sizeof(pid_porti) * SO_PORTI);
-    arr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
-    arr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
-    arr_pos_porti = malloc(sizeof(double) * (SO_PORTI * 3));
-    arr_pos_navi = malloc(sizeof(double) * (SO_PORTI * 3));
-    tipi_merci = malloc(6 * sizeof(merci));
-    porti_selezionati = malloc(sizeof(int));
 
     srand(getpid());
 
@@ -131,9 +125,11 @@ int main(int argc, char * argv[]){
                 sprintf(buf_4harbour, "%d", (i+1));
                 args_porti[1] = buf_4harbour;
                 execve("../bin/porti", args_porti, NULL);
+                
                 exit(0);
             default:
-                arr_pos_porti[i * SO_PORTI] = pid_porti[i];    
+                arr_pos_porti[i * 3] = pid_porti[i];    
+                printf("creato porto i -> %d\n", i);
             break;
         }
     }
@@ -155,7 +151,8 @@ int main(int argc, char * argv[]){
                 execve("../bin/porti", args_porti , NULL);
                 exit(0);
             default:
-                arr_pos_porti[i * SO_PORTI] = pid_porti[i];
+                arr_pos_porti[i * 3] = pid_porti[i];
+                printf("creato porto i -> %d\n", i);
             break;
         }
     }
@@ -211,7 +208,7 @@ int main(int argc, char * argv[]){
     k = 0;
     while(i != SO_DAYS){
         * porti_selezionati = (rand() % (SO_PORTI-3))+4;
-        printf("AO -> %d\n", * porti_selezionati);
+        printf("Porti Selezionati -> %d\n", * porti_selezionati);
         porto_scelto = rand() % SO_PORTI;
 
         if(i == 0){
@@ -257,6 +254,12 @@ int main(int argc, char * argv[]){
         free(porti_random);
     }
 
+    for (i = 0; i < SO_PORTI; i++)
+    {
+        kill(pid_porti[i], SIGABRT);
+    }
+    
+
     while(wait(NULL) != -1);
 
     shmdt(porti_selezionati);
@@ -273,12 +276,6 @@ int main(int argc, char * argv[]){
 
     free(pid_navi);
     free(pid_porti);
-    free(arr_richieste);
-    free(arr_offerte);
-    free(arr_pos_porti);
-    free(arr_pos_navi);
-    free(tipi_merci);
-    free(porti_selezionati);
 
     printf("Finita Simulazione\n");
 }

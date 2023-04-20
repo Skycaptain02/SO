@@ -10,6 +10,7 @@ int riga_offer = 0;
 merci * tipi_merce;
 merci * merci_richieste_local;
 merci * merci_offerte_local;
+int flag_end = 0;
 
 
 void handler_start(int signal){
@@ -21,6 +22,9 @@ void handler_start(int signal){
     switch(signal){
         case SIGUSR2:
             offer_gen(tipi_merce, merci_offerte_local, porti_selezionati);  
+        break;
+        case SIGABRT:
+            flag_end = 1;
         break;
     }
 }
@@ -39,11 +43,6 @@ int main(int argc, char * argv[]){
     double * arr_pos;
     int i, matr_line;
 
-    matr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
-    matr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
-    arr_pos = malloc(sizeof(double) * (SO_PORTI * 3));
-    porti_selezionati = malloc(sizeof(int));
-
     merci_richieste_local = malloc(100 * sizeof(merci));
 
     srand(getpid());
@@ -52,6 +51,7 @@ int main(int argc, char * argv[]){
     sa.sa_handler = handler_start;
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
 
     /**
      * Creo i primi 4 porti su i 4 lati della mappa
@@ -101,9 +101,9 @@ int main(int argc, char * argv[]){
     arr_pos = shmat(shm_pos_id, NULL, 0);
 
     for(i = 0; i < SO_PORTI; i++){
-        if(arr_pos[i * SO_PORTI] == getpid()){
-            arr_pos[(i * SO_PORTI) + 1] = harbor_pos_x;
-            arr_pos[(i * SO_PORTI) + 2] = harbor_pos_y;
+        if(arr_pos[i * 3] == getpid()){
+            arr_pos[(i * 3) + 1] = harbor_pos_x;
+            arr_pos[(i * 3) + 2] = harbor_pos_y;
             break;
         }
     }
@@ -134,12 +134,21 @@ int main(int argc, char * argv[]){
 
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
-    pause();
-    while(1);
+
+    while(!flag_end);
+
+    free(merci_richieste_local);
+
+    shmdt(arr_pos);
+    shmdt(tipi_merce);
+    shmdt(matr_richieste);
+    shmdt(matr_offerte);
+
+    
 }
 
 void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati){
-    printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);
+    /*printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);*/
 }
 
 void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati){
