@@ -64,35 +64,34 @@ int main(int argc, char * argv[]){
    */
 
     /* Sezione creazione shared memory per merci */
-        shm_merci_id = shmget(getpid() + 1, sizeof(struct merci) * SO_MERCI, 0600 | IPC_CREAT);
-        tipi_merci = shmat(shm_merci_id, NULL, 0);
-        
+    shm_merci_id = shmget(getpid() + 1, sizeof(struct merci) * SO_MERCI, 0600 | IPC_CREAT);
+    tipi_merci = shmat(shm_merci_id, NULL, 0);
     /*Sezione creazione semaforo per configurazione*/
 
     /*Sezione creazione shared memory per offerte e richieste*/
-        shm_richieste_id = shmget(getpid() + 2, sizeof(int)* ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
-        arr_richieste = shmat(shm_richieste_id, NULL, 0);
+    shm_richieste_id = shmget(getpid() + 2, sizeof(int)* ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
+    arr_richieste = shmat(shm_richieste_id, NULL, 0);
 
-        shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
-        arr_offerte = shmat(shm_offerte_id, NULL, 0);
+    shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
+    arr_offerte = shmat(shm_offerte_id, NULL, 0);
     /*fIne Sezione creazione shared memory per offerte e richieste*/
 
     /*Sezione creazione shared memeory per gestire la posizione dei porti creati*/
-        shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
-        arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
+    shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
+    arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
     /*fine Sezione creazione shared memory per posizione porti*/
 
     /*Sezione creazione shared memory per la gestione della generazione delle richieste e offerte per porti*/
-        shm_porti_selezionati_id = shmget(getpid() + 5, sizeof(int), 0600 | IPC_CREAT);
-        porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
+    shm_porti_selezionati_id = shmget(getpid() + 5, sizeof(int), 0600 | IPC_CREAT);
+    porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
     /*fine sezione creazione shared memory per la generazione delle richieste e offerte per i porti*/
 
     /*Sezione creazione semafori per configurazione*/
-        sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
-        sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
+    sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
+    sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
 
-        sem_offerte_richieste_id = semget(getpid() + 1, 1, 0600 | IPC_CREAT);
-        sem_set_val(sem_offerte_richieste_id, 0, 1);
+    sem_offerte_richieste_id = semget(getpid() + 1, 1, 0600 | IPC_CREAT);
+    sem_set_val(sem_offerte_richieste_id, 0, 1);
     /*Fine Sezione crezione semaforo per configuazione*/
 
     switch(fork()){
@@ -105,10 +104,6 @@ int main(int argc, char * argv[]){
     }
 
     while(wait(NULL) != -1);
-
-    /*for(i = 0; i < SO_MERCI; i++){
-        printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
-    }*/
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa

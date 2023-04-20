@@ -1,27 +1,31 @@
 #include "env_var.h"
 #include "../lib/ipc.h"
+#include "../lib/list.h"
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati);
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati);
-
+void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati, int perc_richieste);
+void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati, int perc_offerte);
 int riga_request = 0;
 int riga_offer = 0;
 
 merci * tipi_merce;
 merci * merci_richieste_local;
 merci * merci_offerte_local;
+node * list = NULL;
 int flag_end = 0;
 
 
 void handler_start(int signal){
     int shm_porti_selezionati_id;
+    int perc_richieste;
     int * porti_selezionati;
     shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
     porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
 
     switch(signal){
         case SIGUSR2:
-            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati);  
+            perc_richieste = (rand() % 61) + 40;
+            request_gen(tipi_merce, merci_richieste_local, porti_selezionati, perc_richieste);
+            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, 100 - perc_richieste);  
         break;
         case SIGABRT:
             flag_end = 1;
@@ -41,9 +45,9 @@ int main(int argc, char * argv[]){
     int * matr_richieste, * matr_offerte, * porti_selezionati;
     
     double * arr_pos;
-    int i, matr_line;
+    int i;
 
-    merci_richieste_local = malloc(100 * sizeof(merci));
+    merci_richieste_local = malloc(sizeof(merci));
 
     srand(getpid());
     
@@ -128,14 +132,21 @@ int main(int argc, char * argv[]){
     shm_offerte_id = shmget(getppid() + 3, sizeof(int) * SO_PORTI * (SO_MERCI + 1), 0600 | IPC_CREAT);
     matr_offerte = shmat(shm_offerte_id, NULL, 0);
 
-
-    /*request_gen(tipi_merce, matr_richieste, perc_richieste, matr_line, merci_richieste_local);*/
-    /*offer_gen(tipi_merce, matr_offerte, (100 - perc_richieste), matr_line, offerte)*/
-
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
     while(!flag_end);
+
+
+    /*list = list_insert(list, tipi_merce[0]);
+    list = list_insert(list, tipi_merce[1]);
+    list = list_insert(list, tipi_merce[2]);
+    list = list_insert(list, tipi_merce[3]);
+
+    while(list != NULL){
+        printf("Tipo -> %d\n", list->elem.type);
+        list = list->next;
+    }*/
 
     free(merci_richieste_local);
 
@@ -147,39 +158,38 @@ int main(int argc, char * argv[]){
     
 }
 
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati){
+void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati, int perc_offerta){
     /*printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);*/
 }
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati){
-    int gen_choiche;
-    int fill = 0;
+void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati, int perc_richieste){
+    /*int fill = 0;
     int i;
-    int req_fill, id_merce, perc_richieste;
-
-    gen_choiche = rand() % 101;
-    perc_richieste = (rand() % 61) + 40;
-
-    if(gen_choiche <= 70){
-        req_fill = ((SO_FILL/SO_DAYS)/ * porti_selezionati);
-        while(1){
-            id_merce = rand() % SO_MERCI;
-            fill += tipi_merce[id_merce].weight;
-            if(fill > req_fill){
-                fill -= tipi_merce[id_merce].weight;
-                break;
-            }
-            else{
-                merci_richieste_local[riga_request].type = tipi_merce[id_merce].type;
-                merci_richieste_local[riga_request].weight = tipi_merce[id_merce].weight;
-                merci_richieste_local[riga_request].life = tipi_merce[id_merce].life;
-                riga_request++;
-            }
-        }
-
-        printf("Fill -> %d\n", fill);
-    }
+    int req_fill, id_merce; 
+    merci * buffer;
     
-
-
+    req_fill = ((SO_FILL/SO_DAYS)/ * porti_selezionati) * perc_richieste;
+    while(1){
+        id_merce = rand() % SO_MERCI;
+        fill += tipi_merce[id_merce].weight;
+        if(fill > req_fill){
+            fill -= tipi_merce[id_merce].weight;
+            break;
+        }
+        else{
+            merci_richieste_local[riga_request].type = tipi_merce[id_merce].type;
+            merci_richieste_local[riga_request].weight = tipi_merce[id_merce].weight;
+            merci_richieste_local[riga_request].life = tipi_merce[id_merce].life;
+            
+            riga_request++;
+            buffer = realloc(merci_richieste_local, ((riga_request+1)*sizeof(merci)));
+            if (!buffer) {
+                printf("Error!\n");
+                exit(-1);
+            } else {
+                merci_richieste_local = buffer;
+            }
+            printf("riga_request -> %d\n", riga_request);
+        }
+    }*/
 }
