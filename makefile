@@ -10,12 +10,6 @@ porti: porti.c
 meteo: meteo.c
 	gcc -std=c89 -Wpedantic ./src/meteo.c ./lib/ipc.o -o ./bin/meteo
 
-ipc: ipc.c
-	gcc -std=c89 -Wpedantic -c ./lib/ipc.c
-
-list: ./lib/list.c
-	gcc -std=c89 -Wpedantic -c ./lib/list.c
-
 merci: merci.c
 	gcc -std=c89 -Wpedantic ./src/merci.c ./lib/ipc.o -o ./bin/merci
 	

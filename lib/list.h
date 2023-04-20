@@ -13,9 +13,10 @@ typedef struct node{
 
 node * list_create(merci value);
 node * list_insert(node * first, merci value);
-void list_delete_elem(node * first, int index);
+node * list_delete_elem(node * first, int index);
 void list_free(node * first);
-void list_subtract(node * first);
-
+node * list_subtract(node * first);
+node * list_get_first(node * first);
+void list_print(node * first);
 
 #endif

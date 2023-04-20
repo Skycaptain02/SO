@@ -138,15 +138,31 @@ int main(int argc, char * argv[]){
     while(!flag_end);
 
 
-    /*list = list_insert(list, tipi_merce[0]);
+    list = list_insert(list, tipi_merce[0]);
     list = list_insert(list, tipi_merce[1]);
     list = list_insert(list, tipi_merce[2]);
     list = list_insert(list, tipi_merce[3]);
 
-    while(list != NULL){
-        printf("Tipo -> %d\n", list->elem.type);
-        list = list->next;
-    }*/
+    printf("Stampo la lista prima di modifiche\n");
+    list_print(list);
+    printf("\n");
+
+    list = list_get_first(list);
+    list = list_delete_elem(list, 2);
+
+    printf("Stampo la lista dopo la modifica (Elim 2 elem)\n");
+    list_print(list);
+    printf("\n");
+
+    list = list_get_first(list);
+    list = list_subtract(list);
+
+    printf("Stampo la lista dopo la modifica (Sottrazzione)\n");
+    list_print(list);
+    printf("\n");
+
+
+    
 
     free(merci_richieste_local);
 

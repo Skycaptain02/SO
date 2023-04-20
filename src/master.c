@@ -105,6 +105,10 @@ int main(int argc, char * argv[]){
 
     while(wait(NULL) != -1);
 
+    for(i = 0; i < SO_MERCI; i++){
+        printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
+    }
+
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
     */
