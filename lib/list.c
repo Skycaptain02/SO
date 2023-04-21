@@ -35,11 +35,7 @@ node * list_delete_elem(node * first, int index){
     node * temp;
 
     temp = first;
-    while(first != NULL){
-        length++;
-        first = first->next;
-    }
-    first = temp;
+    length = list_length(first);
     
     if(first != NULL && index < length){
         for(i = 0; i < index; i++){
@@ -75,16 +71,14 @@ node * list_delete_elem(node * first, int index){
 }
 
 void list_free(node * first){
-    /**
-     * ?
-     * ?
-     * ?
-     * ?    COME CAZZO DEVO FARLO SONO LE 18 E NON CI STO CAPENDO UN CAZZO
-     * ?
-     * ?
-     * ?
-    */
-    
+    node * next;
+
+    while(first != NULL){
+        next = first->next;
+        free(first);
+        first = next;
+    }
+    free(next);
 }
 
 node * list_subtract(node * first){
@@ -106,23 +100,34 @@ node * list_get_first(node * first){
     if(first != NULL){
         while(first->prev != NULL){
             first = first->prev;
-            printf("CIAO\n");
         }
     }
     return first;
 }
 
-void list_print(node * first){
-    node * temp;
+void list_print(node * first, int pid){
 
     if(first != NULL){
-        temp = first;
+        first = list_get_first(first);
 
         while(first != NULL){
-            printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", first->elem.type, first->elem.weight, first->elem.life);
+            printf("Tipo -> %d, Peso -> %d, Vita -> %d, PID -> %d\n", first->elem.type, first->elem.weight, first->elem.life, pid);
             first = first->next;
         }
 
-        first = temp;
+        first = list_get_first(first);
     }
+}
+
+int list_length(node * first){
+    int length = 0;
+    node * temp;
+    if(first != NULL){
+        temp = first;
+        while(temp != NULL){
+            length++;
+            temp = temp->next;
+        }   
+    }
+    return length;
 }

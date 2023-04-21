@@ -158,7 +158,7 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
-    gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
+    gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 1);
     sem_reserve(sem_offerte_richieste_id, 0);
     
     /**
@@ -373,87 +373,86 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
      * 1) che il numero di richieste totali per singola merce non può eccedere SO_MERCI/2 (num_merci)
      * 2) che la merce non sia già stata richiesta dal porto corrente
     */
-           
-    for(j = 0; j < SO_PORTI-1; j++){
-        matr_richieste[j][0] = pid_porti[j];
-        num_richieste = (rand() % (num_merci)) + 1;
-        for(k = 0; k < num_richieste; k++){
-            col_merce_richiesta = (rand() % SO_MERCI)+1;
-            for(i = 0; i < SO_PORTI-1; i++){
-                sum += matr_richieste[i][col_merce_richiesta];
-            }
-            while(matr_richieste[j][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
-                sum = 0;
-                col_merce_richiesta = (rand() % SO_MERCI) + 1;
+
+    if(SO_MERCI == 1){
+        for(i = 0; i < SO_PORTI/2; i++){
+            matr_richieste[i][1] = 1;
+        }
+    }
+    else{           
+        for(j = 0; j < SO_PORTI-1; j++){
+            matr_richieste[j][0] = pid_porti[j];
+            num_richieste = (rand() % (num_merci)) + 1;
+            for(k = 0; k < num_richieste; k++){
+                col_merce_richiesta = (rand() % SO_MERCI)+1;
                 for(i = 0; i < SO_PORTI-1; i++){
                     sum += matr_richieste[i][col_merce_richiesta];
                 }
-
-
-
-
-                /*IMPORTANTE, CON SO_MERCI == 1 il programma va in loop qui*/
-
-
-
-
-
+                while(matr_richieste[j][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
+                    sum = 0;
+                    col_merce_richiesta = (rand() % SO_MERCI) + 1;
+                    for(i = 0; i < SO_PORTI-1; i++){
+                        sum += matr_richieste[i][col_merce_richiesta];
+                    }
+                }
+                matr_richieste[j][col_merce_richiesta] = 1;
             }
-            matr_richieste[j][col_merce_richiesta] = 1;
         }
-    }
 
-    /**
-     * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata richiesta dai primi SO_PORTI-1 porti
-     * Tramite il contenuto di quest'ultimo array andremo ad assegnare all'ultimo porto tutte le risorse che non sono state richieste dagli altri
-    */
-    
-    for(j = 0; j < SO_PORTI-1; j++){
-        for(k = 1; k < SO_MERCI +1; k++){
-            arr_control[k-1] |= matr_richieste[j][k];
+        /**
+         * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata richiesta dai primi SO_PORTI-1 porti
+         * Tramite il contenuto di quest'ultimo array andremo ad assegnare all'ultimo porto tutte le risorse che non sono state richieste dagli altri
+        */
+        
+        for(j = 0; j < SO_PORTI-1; j++){
+            for(k = 1; k < SO_MERCI +1; k++){
+                arr_control[k-1] |= matr_richieste[j][k];
+            }
         }
-    }
-    matr_richieste[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
-    
-    /**
-     * Assegnazione all'SO_PORTI porto delle risorse non richieste da nessun'altro porto
-    */
-    
-    for(k = 1; k < SO_MERCI+1; k++){
-        if(arr_control[k-1] == 0){
-            matr_richieste[SO_PORTI-1][k] = 1;
-            counter += 1;
+        matr_richieste[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
+        
+        /**
+         * Assegnazione all'SO_PORTI porto delle risorse non richieste da nessun'altro porto
+        */
+        
+        for(k = 1; k < SO_MERCI+1; k++){
+            if(arr_control[k-1] == 0){
+                matr_richieste[SO_PORTI-1][k] = 1;
+                counter += 1;
+            }
         }
-    }
 
-    /**
-     * Assegnazione delle rimanenti richieste per l'ultimo porto, escludendo quelle con troppe richieste (> SO_PORTI/2)
-     * oppure già richieste dallo stesso porto (matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1)
-     * Quindi ogni merce in totale puà esser richiesta al masismo SO_PORTI/2 volte gestito tramite la variabile sum
-    */
+        /**
+         * Assegnazione delle rimanenti richieste per l'ultimo porto, escludendo quelle con troppe richieste (> SO_PORTI/2)
+         * oppure già richieste dallo stesso porto (matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1)
+         * Quindi ogni merce in totale puà esser richiesta al masismo SO_PORTI/2 volte gestito tramite la variabile sum
+        */
 
-    flag = counter;
-    for(k = 1; k <= SO_MERCI && flag < num_merci; k++){
-        sum = 0;
-        col_merce_richiesta = k;
-        for(i = 0; i < SO_PORTI-1; i++){
-            sum += matr_richieste[i][col_merce_richiesta];
+        flag = counter;
+        for(k = 1; k <= SO_MERCI && flag < num_merci; k++){
+            sum = 0;
+            col_merce_richiesta = k;
+            for(i = 0; i < SO_PORTI-1; i++){
+                sum += matr_richieste[i][col_merce_richiesta];
+            }
+            if(matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
+                continue;
+            }
+            matr_richieste[SO_PORTI-1][col_merce_richiesta] = 1;
+            flag++;
         }
-        if(matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
-            continue;
-        }
-        matr_richieste[SO_PORTI-1][col_merce_richiesta] = 1;
-        flag++;
-    }
+    }  
 
     /**
      * Una volta generata la tabella della richieste vado a generare la tabella delle offerte
     */
     
     gen_offerta(matr_richieste, matr_offerte,pid_porti, num_merci, print);
+
     /**
      * Generate le due matrici 
     */
+
     i = 0;
     for(j = 0; j < SO_PORTI; j++){
         for(k = 0; k < SO_MERCI+1; k++){

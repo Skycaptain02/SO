@@ -2,34 +2,29 @@
 #include "../lib/ipc.h"
 #include "../lib/list.h"
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati, int perc_richieste);
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati, int perc_offerte);
-int riga_request = 0;
-int riga_offer = 0;
+node * request_gen(merci * tipi_merce, node * merci_richieste_local, int * porti_selezionati, int * matr_richieste, int perc_richieste);
+void offer_gen(merci * tipi_merce, node * merci_offerte_local, int * porti_selezionati, int * matr_offerte, int perc_offerte);
 
 merci * tipi_merce;
-merci * merci_richieste_local;
-merci * merci_offerte_local;
-node * list = NULL;
-int flag_end = 0;
+node * merci_richieste_local;
+node * merci_offerte_local;
 
+int flag_end = 0, flag_gen = 0;
 
 void handler_start(int signal){
-    int shm_porti_selezionati_id;
-    int perc_richieste;
-    int * porti_selezionati;
-    shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
-    porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
 
+    printf("SEGNALE\n");
     switch(signal){
         case SIGUSR2:
-            perc_richieste = (rand() % 61) + 40;
-            request_gen(tipi_merce, merci_richieste_local, porti_selezionati, perc_richieste);
-            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, 100 - perc_richieste);  
+            
+            flag_gen = 1;
         break;
         case SIGABRT:
             flag_end = 1;
         break;
+        default:
+            printf("ERROR\n");
+            break;
     }
 }
 
@@ -39,15 +34,13 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte;
     int * matr_richieste, * matr_offerte, * porti_selezionati;
     
     double * arr_pos;
     int i;
-
-    merci_richieste_local = malloc(sizeof(merci));
 
     srand(getpid());
     
@@ -132,80 +125,95 @@ int main(int argc, char * argv[]){
     shm_offerte_id = shmget(getppid() + 3, sizeof(int) * SO_PORTI * (SO_MERCI + 1), 0600 | IPC_CREAT);
     matr_offerte = shmat(shm_offerte_id, NULL, 0);
 
+    shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
+    porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
+
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
-    while(!flag_end);
+    while(!flag_end){
+        if(flag_gen){
+            perc_richieste = (rand() % 21) + 40;
+            merci_richieste_local = request_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
+            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste); 
+            flag_gen = 0;
+        }
+    }
 
+    list_print(merci_richieste_local, getpid());
+    printf("AO\n");
 
-    list = list_insert(list, tipi_merce[0]);
-    list = list_insert(list, tipi_merce[1]);
-    list = list_insert(list, tipi_merce[2]);
-    list = list_insert(list, tipi_merce[3]);
-
-    printf("Stampo la lista prima di modifiche\n");
-    list_print(list);
-    printf("\n");
-
-    list = list_get_first(list);
-    list = list_delete_elem(list, 2);
-
-    printf("Stampo la lista dopo la modifica (Elim 2 elem)\n");
-    list_print(list);
-    printf("\n");
-
-    list = list_get_first(list);
-    list = list_subtract(list);
-
-    printf("Stampo la lista dopo la modifica (Sottrazzione)\n");
-    list_print(list);
-    printf("\n");
-
-
+    if(merci_offerte_local != NULL){
+        list_free(merci_richieste_local);
+    }
     
-
-    free(merci_richieste_local);
-
     shmdt(arr_pos);
     shmdt(tipi_merce);
     shmdt(matr_richieste);
     shmdt(matr_offerte);
-
-    
 }
 
-void offer_gen(merci * tipi_merce, merci * merci_offerte_local, int * porti_selezionati, int perc_offerta){
+void offer_gen(merci * tipi_merce, node * merci_offerte_local, int * porti_selezionati, int * matr_offerte, int perc_offerta){
     /*printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);*/
 }
 
-void request_gen(merci * tipi_merce, merci * merci_richieste_local, int * porti_selezionati, int perc_richieste){
-    /*int fill = 0;
-    int i;
-    int req_fill, id_merce; 
-    merci * buffer;
-    
-    req_fill = ((SO_FILL/SO_DAYS)/ * porti_selezionati) * perc_richieste;
-    while(1){
-        id_merce = rand() % SO_MERCI;
-        fill += tipi_merce[id_merce].weight;
-        if(fill > req_fill){
-            fill -= tipi_merce[id_merce].weight;
+node * request_gen(merci * tipi_merce, node * merci_richieste_local, int * porti_selezionati, int * matr_richieste, int perc_richieste){
+    int fill = 0;
+    int id_merce, riga_matr;
+    int i, flag_ctl = 1;
+    double req_fill;
+
+    for(i = 0; i < SO_PORTI; i++){
+        if(getpid() == matr_richieste[i*(SO_MERCI+1)]){
+            riga_matr = i;
             break;
         }
-        else{
-            merci_richieste_local[riga_request].type = tipi_merce[id_merce].type;
-            merci_richieste_local[riga_request].weight = tipi_merce[id_merce].weight;
-            merci_richieste_local[riga_request].life = tipi_merce[id_merce].life;
-            
-            riga_request++;
-            buffer = realloc(merci_richieste_local, ((riga_request+1)*sizeof(merci)));
-            if (!buffer) {
-                printf("Error!\n");
-                exit(-1);
-            } else {
-                merci_richieste_local = buffer;
+    }
+    
+    req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)*porti_selezionati) * ((double)perc_richieste / 100);
+    printf("req_fill -> %f\n", req_fill);
+    printf("AO\n");
+    
+    if(SO_MERCI == 1){
+        
+        flag_ctl = 1;
+        while(flag_ctl){
+            if(matr_richieste[riga_matr * (SO_MERCI + 1) + 1] == 1){
+                fill += tipi_merce[0].weight;
+                if(fill > req_fill){
+                    fill -= tipi_merce[0].weight;
+                    flag_ctl = 0;
+                }
+                else{
+                    merci_richieste_local = list_insert(merci_richieste_local, tipi_merce[0]);
+                }
             }
-            printf("riga_request -> %d\n", riga_request);
         }
-    }*/
+    }
+    else{
+        while(1){
+            flag_ctl = 1;
+            id_merce = rand() % SO_MERCI;
+            while(flag_ctl){
+                if(matr_richieste[riga_matr * (SO_MERCI + 1) + (id_merce + 1)] == 1){
+                    flag_ctl = 0;
+                }
+                else{
+                    id_merce = rand() % SO_MERCI;
+                    flag_ctl = 1;
+                }
+            }
+            fill += tipi_merce[id_merce].weight;
+            if(fill > req_fill){
+                fill -= tipi_merce[id_merce].weight;
+                break;
+            }
+            else{
+                merci_richieste_local = list_insert(merci_richieste_local, tipi_merce[id_merce]);
+            }
+        }
+    }
+    
+    printf("PID -> %d\n", getpid());
+    return merci_richieste_local;
 }

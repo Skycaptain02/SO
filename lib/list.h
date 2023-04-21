@@ -17,6 +17,6 @@ node * list_delete_elem(node * first, int index);
 void list_free(node * first);
 node * list_subtract(node * first);
 node * list_get_first(node * first);
-void list_print(node * first);
+void list_print(node * first, int pid);
 
 #endif
