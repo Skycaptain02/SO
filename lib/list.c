@@ -37,35 +37,32 @@ node * list_delete_elem(node * first, int index){
     temp = first;
     length = list_length(first);
     
-    if(first != NULL && index < length){
+    if(temp != NULL && index < length){
         for(i = 0; i < index; i++){
-            first = first->next;
+            temp = temp->next;
         }
         if(index == 0){
-            first->next->prev = NULL;
+            temp->next->prev = NULL;
         }
         else if(index == length-1){
-            first->prev->next = NULL;
+            temp->prev->next = NULL;
         }
         else if(length == 1){
             return NULL;
         }
         else{
-            first->prev->next = first->next;
-            first->next->prev = first->prev;
+            temp->prev->next = temp->next;
+            temp->next->prev = temp->prev;
         }
-        
-        
-        free(first);
-        first = temp;
-        return first;
+        free(temp);
+        return list_get_first(first);
     }
     else if(index >= length || index < 0){
         printf("Error: index out of bounds\n");
         return NULL;
     }
     else{
-        return first;
+        return NULL;
     }
     
 }
@@ -83,14 +80,12 @@ void list_free(node * first){
 
 node * list_subtract(node * first){
     node * temp;
-    
     if(first != NULL){
         temp = first;
         while(first != NULL){
             first->elem.life -= 1;
             first = first->next;
         }
-
         first = temp;
     }
     return first;
@@ -103,6 +98,49 @@ node * list_get_first(node * first){
         }
     }
     return first;
+}
+
+node * list_delete_zero(node * first){
+    node * temp;
+    int i = 0, length;
+    
+    length = list_length(first);
+    temp = first;
+    while(temp->next != NULL){
+        if(temp->elem.life == 0){
+            if(i == 0){
+                temp->next->prev = NULL;
+            }
+            else if(length == 1){
+                return NULL;
+            }
+            else{
+                temp->prev->next = temp->next;
+                temp->next->prev = temp->prev;
+            }
+            temp = temp->next;
+            length--;
+            printf("len: %d\n", length);
+            continue;
+        }
+        i++;
+        temp = temp->next;
+    }
+    
+    if(temp->elem.life == 0){
+        temp->prev->next = NULL;
+        length--;
+        temp = temp->prev;
+    }
+    printf("i = %d, length = %d\n", i, length);
+    first = list_get_first(temp);
+    free(temp);
+    return first;
+}
+   
+
+node * list_delete_current(node * current){
+    
 }
 
 void list_print(node * first, int pid){

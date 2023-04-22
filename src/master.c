@@ -375,8 +375,12 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
     */
 
     if(SO_MERCI == 1){
-        for(i = 0; i < SO_PORTI/2; i++){
-            matr_richieste[i][1] = 1;
+        for(i = 0; i < SO_PORTI; i++){
+            matr_richieste[i][0] = pid_porti[i];
+            if(i < SO_PORTI/2){
+                matr_richieste[i][1] = 1;
+            }
+            
         }
     }
     else{           

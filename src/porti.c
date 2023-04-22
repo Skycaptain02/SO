@@ -2,8 +2,7 @@
 #include "../lib/ipc.h"
 #include "../lib/list.h"
 
-node * request_gen(merci * tipi_merce, node * merci_richieste_local, int * porti_selezionati, int * matr_richieste, int perc_richieste);
-void offer_gen(merci * tipi_merce, node * merci_offerte_local, int * porti_selezionati, int * matr_offerte, int perc_offerte);
+node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale);
 
 merci * tipi_merce;
 node * merci_richieste_local;
@@ -12,11 +11,8 @@ node * merci_offerte_local;
 int flag_end = 0, flag_gen = 0;
 
 void handler_start(int signal){
-
-    printf("SEGNALE\n");
     switch(signal){
         case SIGUSR2:
-            
             flag_gen = 1;
         break;
         case SIGABRT:
@@ -36,7 +32,8 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id;
     int sem_config_id, sem_offerte_richieste_id;
-    int perc_richieste, perc_offerte;
+    int perc_richieste, perc_offerte, errno, banchine = SO_BANCHINE;
+    int merci_scadute = 0;
     int * matr_richieste, * matr_offerte, * porti_selezionati;
     
     double * arr_pos;
@@ -133,17 +130,28 @@ int main(int argc, char * argv[]){
 
     while(!flag_end){
         if(flag_gen){
+            if(merci_offerte_local != NULL){
+                merci_offerte_local = list_subtract(merci_offerte_local);
+                merci_offerte_local = list_delete_zero(merci_offerte_local);
+                list_print(merci_offerte_local, getpid());
+            }
+
             perc_richieste = (rand() % 21) + 40;
-            merci_richieste_local = request_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
-            offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste); 
+            merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
+            merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste);
             flag_gen = 0;
         }
+        if(errno){
+            printf("ERROR\n");
+        }
     }
-
-    list_print(merci_richieste_local, getpid());
-    printf("AO\n");
+    /*list_print(merci_offerte_local, getpid());*/
+    
 
     if(merci_offerte_local != NULL){
+        list_free(merci_offerte_local);
+    }
+    if(merci_richieste_local != NULL){
         list_free(merci_richieste_local);
     }
     
@@ -153,49 +161,45 @@ int main(int argc, char * argv[]){
     shmdt(matr_offerte);
 }
 
-void offer_gen(merci * tipi_merce, node * merci_offerte_local, int * porti_selezionati, int * matr_offerte, int perc_offerta){
-    /*printf("[%d] -> AO -> %d\n", getpid(), * porti_selezionati);*/
-}
-
-node * request_gen(merci * tipi_merce, node * merci_richieste_local, int * porti_selezionati, int * matr_richieste, int perc_richieste){
+node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale){
     int fill = 0;
-    int id_merce, riga_matr;
+    int id_merce, riga_matr = 0;
     int i, flag_ctl = 1;
     double req_fill;
 
     for(i = 0; i < SO_PORTI; i++){
-        if(getpid() == matr_richieste[i*(SO_MERCI+1)]){
+        if(getpid() == matrice[i*(SO_MERCI+1)]){
             riga_matr = i;
             break;
         }
     }
-    
-    req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)*porti_selezionati) * ((double)perc_richieste / 100);
-    printf("req_fill -> %f\n", req_fill);
-    printf("AO\n");
-    
-    if(SO_MERCI == 1){
-        
+    req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)*porti_selezionati) * ((double)percentuale / 100); 
+    if (SO_MERCI == 1)
+    {    
         flag_ctl = 1;
         while(flag_ctl){
-            if(matr_richieste[riga_matr * (SO_MERCI + 1) + 1] == 1){
+            if(matrice[(riga_matr * (2)) + 1] == 1){
                 fill += tipi_merce[0].weight;
                 if(fill > req_fill){
                     fill -= tipi_merce[0].weight;
                     flag_ctl = 0;
+                    
                 }
                 else{
-                    merci_richieste_local = list_insert(merci_richieste_local, tipi_merce[0]);
+                    merci_local = list_insert(merci_local, tipi_merce[0]);
                 }
             }
-        }
+            else{
+                flag_ctl = 0;
+            }
+        }   
     }
     else{
         while(1){
             flag_ctl = 1;
             id_merce = rand() % SO_MERCI;
             while(flag_ctl){
-                if(matr_richieste[riga_matr * (SO_MERCI + 1) + (id_merce + 1)] == 1){
+                if(matrice[riga_matr * (SO_MERCI + 1) + (id_merce + 1)] == 1){
                     flag_ctl = 0;
                 }
                 else{
@@ -209,11 +213,9 @@ node * request_gen(merci * tipi_merce, node * merci_richieste_local, int * porti
                 break;
             }
             else{
-                merci_richieste_local = list_insert(merci_richieste_local, tipi_merce[id_merce]);
+                merci_local = list_insert(merci_local, tipi_merce[id_merce]);
             }
         }
     }
-    
-    printf("PID -> %d\n", getpid());
-    return merci_richieste_local;
+    return merci_local;
 }
