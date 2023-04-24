@@ -2,7 +2,9 @@
 
 node * list_create(merci value){
     node * new_node;
+
     new_node = malloc(sizeof(node));
+
     new_node->elem = value;
     new_node->next = NULL;
     new_node->prev = NULL;
@@ -12,6 +14,7 @@ node * list_create(merci value){
 node * list_insert(node * first, merci value){
     node * temp;
     node * new_node;
+
     if(first == NULL){
        first = list_create(value);
     }
@@ -80,6 +83,7 @@ void list_free(node * first){
 
 node * list_subtract(node * first){
     node * temp;
+
     if(first != NULL){
         temp = first;
         while(first != NULL){
@@ -103,16 +107,12 @@ node * list_get_first(node * first){
 node * list_delete_zero(node * first){
     node * temp;
     int i = 0, length;
-    
-    length = list_length(first);
-    temp = first;
+    temp = list_get_first(first);
+    length = list_length(temp);
     while(temp->next != NULL){
         if(temp->elem.life == 0){
             if(i == 0){
                 temp->next->prev = NULL;
-            }
-            else if(length == 1){
-                return NULL;
             }
             else{
                 temp->prev->next = temp->next;
@@ -120,40 +120,36 @@ node * list_delete_zero(node * first){
             }
             temp = temp->next;
             length--;
-            printf("len: %d\n", length);
             continue;
         }
         i++;
         temp = temp->next;
     }
-    
     if(temp->elem.life == 0){
-        temp->prev->next = NULL;
-        length--;
-        temp = temp->prev;
+        if(length == 1){
+            return NULL;
+        }
+        else{
+            temp->prev->next = NULL;
+            length--;
+            temp = temp->prev;
+        } 
     }
-    printf("i = %d, length = %d\n", i, length);
+    /*printf("i = %d, length = %d\n", i, temp->elem.life);*/
     first = list_get_first(temp);
-    free(temp);
     return first;
-}
-   
-
-node * list_delete_current(node * current){
-    
 }
 
 void list_print(node * first, int pid){
+    node * temp;
 
     if(first != NULL){
-        first = list_get_first(first);
-
-        while(first != NULL){
-            printf("Tipo -> %d, Peso -> %d, Vita -> %d, PID -> %d\n", first->elem.type, first->elem.weight, first->elem.life, pid);
-            first = first->next;
+        temp = first;
+        temp = list_get_first(temp);
+        while(temp != NULL){
+            printf("Tipo -> %d, Peso -> %d, Vita -> %d, PID -> %d\n", temp->elem.type, temp->elem.weight, temp->elem.life, pid);
+            temp = temp->next;
         }
-
-        first = list_get_first(first);
     }
 }
 

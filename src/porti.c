@@ -6,7 +6,7 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
 
 merci * tipi_merce;
 node * merci_richieste_local;
-node * merci_offerte_local;
+node * merci_offerte_local = NULL;
 
 int flag_end = 0, flag_gen = 0;
 
@@ -133,21 +133,23 @@ int main(int argc, char * argv[]){
             if(merci_offerte_local != NULL){
                 merci_offerte_local = list_subtract(merci_offerte_local);
                 merci_offerte_local = list_delete_zero(merci_offerte_local);
-                list_print(merci_offerte_local, getpid());
             }
-
             perc_richieste = (rand() % 21) + 40;
             merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
             merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste);
             flag_gen = 0;
         }
-        if(errno){
-            printf("ERROR\n");
+        else if(errno){
+            printf("ERROR %s\n", strerror(errno));
         }
     }
-    /*list_print(merci_offerte_local, getpid());*/
-    
+    if(merci_offerte_local != NULL){
+        merci_offerte_local = list_subtract(merci_offerte_local);
+        merci_offerte_local = list_delete_zero(merci_offerte_local);
+    }
 
+    list_print(merci_offerte_local, getpid());
+    
     if(merci_offerte_local != NULL){
         list_free(merci_offerte_local);
     }

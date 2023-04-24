@@ -16,14 +16,14 @@
 #include <signal.h>
 
 
-#define SO_NAVI 0
+#define SO_NAVI 1
 #define SO_PORTI 4
 #define SO_MERCI 2
 #define SO_SIZE 20
 #define SO_MIN_VITA 1
-#define SO_MAX_VITA 2
+#define SO_MAX_VITA 1
 #define SO_LATO 200
-#define SO_SPEED 20
+#define SO_SPEED 100
 #define SO_CAPACITY 20
 #define SO_BANCHINE 20
 #define SO_FILL 1000

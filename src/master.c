@@ -203,6 +203,10 @@ int main(int argc, char * argv[]){
 
     while(semctl(sem_config_id, 0, GETVAL) != 0);
 
+    for(i = 0; i < SO_NAVI; i++){
+        kill(pid_navi[i], SIGUSR1);
+    }
+
     i = 0;
     k = 0;
     while(i != SO_DAYS){
@@ -245,6 +249,9 @@ int main(int argc, char * argv[]){
         for(j = 0; j < * porti_selezionati; j++){
             kill(pid_porti[porti_random[j]], SIGUSR2);
         }
+        for(j = 0; j < SO_NAVI; j++){
+            kill(pid_navi[j], SIGUSR1);
+        }
 
         j = 0;
         k = 0;
@@ -252,14 +259,22 @@ int main(int argc, char * argv[]){
         sleep(1);
         free(porti_random);
     }
-
+    
+    
+    
     for (i = 0; i < SO_PORTI; i++)
     {
         kill(pid_porti[i], SIGABRT);
     }
+    for (i = 0; i < SO_NAVI; i++)
+    {
+        kill(pid_navi[i], SIGABRT);
+    }
     
 
-    while(wait(NULL) != -1);
+    while(wait(NULL) != -1){
+        printf("ATTESA FIGLIO\n");
+    };
 
     shmdt(porti_selezionati);
     shmdt(arr_pos_porti);
@@ -281,7 +296,6 @@ int main(int argc, char * argv[]){
 
 /**
  * Generazione matrice offerte, tutte le offerte vengono generate in una matrice di 0 e 1 la quale e' la copia della matrice delle richieste ma invertita
- * questo processo e' randomico, si sceglie casualemente se invertire o meno il contenuto nella matrice delle richieste
  * Infine si effettua un controllo sull'ultimo porto, in modo che tutte le merci siano offerte almeno una volta
 */
 
@@ -293,11 +307,7 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
     for(i = 0; i < SO_PORTI-1; i++){
         matr_offerte[i][0] = pid_porti[i];
         for(j = 1; j < SO_MERCI + 1; j++){
-            rand_pid = rand() % 101;
             matr_offerte[i][j] = (matr_richieste[i][j] == 1) ?  0 : 1;
-            if(rand_pid < 30){
-                matr_offerte[i][j] = 0;
-            }
         }
         j = 1;
         counter = 0;
