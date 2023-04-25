@@ -74,7 +74,7 @@ int main(int argc, char * argv[]){
 
     shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_offerte = shmat(shm_offerte_id, NULL, 0);
-    /*fIne Sezione creazione shared memory per offerte e richieste*/
+    /*fine Sezione creazione shared memory per offerte e richieste*/
 
     /*Sezione creazione shared memeory per gestire la posizione dei porti creati*/
     shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
@@ -136,7 +136,7 @@ int main(int argc, char * argv[]){
     args_porti[1] = " ";
     
     /**
-     * Creo i restanti porti
+     * Creazione restanti porti
     */
   
     for(i = 4; i < SO_PORTI; i++){
@@ -155,6 +155,11 @@ int main(int argc, char * argv[]){
             break;
         }
     }
+
+    /**
+     * Dopo aver generato tutti i processi porti, vado a creare le matrici delle richieste e delle offerte, creade un semaforo che comunicherà
+     * ai porti quando iniziare a generare le effettive risorse all'interno del loro magazzino
+    */
 
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
@@ -183,8 +188,7 @@ int main(int argc, char * argv[]){
     printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
 
     /**
-     * Qua bisogna impostare un semaforo a 0 affinchè i porti sappiano che le matrici
-     * sono state generate. 
+     * Generazione processo meteo
     */
  
     switch(pid_meteo = fork()){
@@ -201,17 +205,28 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t METEO PRONTO\n");
 
+    /**
+     * Dopo aver creato il processo meteo, il master aspetta che tutti i propri processi figli terminino la loro configurazione iniziale
+     * Subito dopo verrà inviato un segnale SIGUSR1 in modo che i porti inizieranno a generare le risorse facendo cominciare la simulazione
+    */
+
     while(semctl(sem_config_id, 0, GETVAL) != 0);
 
     for(i = 0; i < SO_NAVI; i++){
         kill(pid_navi[i], SIGUSR1);
     }
 
+    /**
+     * La simulazione effettiva comincia qui
+     * All'inizio del ciclo while vengono scelti un numero casuale si porti i quali dovranno generare risorse all'interno del loro magazzino
+     * Tali porti verranno scelti a caso, non ripetuti, in modo che non si verichi un possibile merge di segnali
+     * I porti che giorno N sono stati scelti riceveranno dal master un segnale SIGUSR2 il quale comunicherà ai porti di creare le proprie merci
+    */
+
     i = 0;
     k = 0;
     while(i != SO_DAYS){
         * porti_selezionati = (rand() % (SO_PORTI-3))+4;
-        printf("Porti Selezionati -> %d\n", * porti_selezionati);
         porto_scelto = rand() % SO_PORTI;
 
         if(i == 0){
@@ -260,6 +275,9 @@ int main(int argc, char * argv[]){
         free(porti_random);
     }
     
+    /**
+     * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
+    */
     
     
     for (i = 0; i < SO_PORTI; i++)
@@ -272,9 +290,7 @@ int main(int argc, char * argv[]){
     }
     
 
-    while(wait(NULL) != -1){
-        printf("ATTESA FIGLIO\n");
-    };
+    while(wait(NULL) != -1);
 
     shmdt(porti_selezionati);
     shmdt(arr_pos_porti);
@@ -358,7 +374,7 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
 }
     
 /**
- * Creazione matrice richieste, una matrice riempita di 0 e 1, la prima colonna viene riempita dai PID dei porti che richiedono la merce. 
+ * Creazione matrice richieste, una matrice riempita di 0 e 1, la prima colonna viene riempita dai PID dei porti che richiederanno la merce. 
  * 0 e 1 servono per indicare se la corrispettiva merce indicata nella colonna e' richiesta o meno
  * Ogni porto richiede un numero casuale di merci totali tra 1 e SO_MERCI/2
  * L'ultimo porto richiederà tutte le merci che non sono state richieste dai restanti SO_PORTI - 1 porti, assicurandoci che tutte le merci siano richieste
@@ -382,6 +398,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
      * Generazione delle merci richeste dai primi SO_PORTI-1 porti, i controlli effettuati sulla generazione sono: 
      * 1) che il numero di richieste totali per singola merce non può eccedere SO_MERCI/2 (num_merci)
      * 2) che la merce non sia già stata richiesta dal porto corrente
+     * In questo caso andiamo a gestire anche il caso in cui il numero di merci totali e' 1, evitanto possibili crush o loop
     */
 
     if(SO_MERCI == 1){
@@ -424,10 +441,6 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
             }
         }
         matr_richieste[SO_PORTI-1][0] = pid_porti[SO_PORTI-1];
-        
-        /**
-         * Assegnazione all'SO_PORTI porto delle risorse non richieste da nessun'altro porto
-        */
         
         for(k = 1; k < SO_MERCI+1; k++){
             if(arr_control[k-1] == 0){
@@ -476,6 +489,10 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
         }
     }
 
+    /**
+     * Semplice stampa per testing
+    */
+
     if(print){
         printf("\tRICHIESTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
@@ -499,8 +516,13 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
     printf("[SISTEMA]\t -> \t MODULI DOMANDA/OFFERTA GENERATI CORRETTAMENTE\n");
 }
 
-void check_inputs(){
 
+/**
+ * Questa funzione serve per effettuare un semplice controllo iniziale sulla maggior parte dei parametri inseriti all'interno del file env_var.h
+ * Se un controllo non passa, il programma non parte
+*/
+
+void check_inputs(){
     if(SO_PORTI < 4){
         printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
         exit(- 1);

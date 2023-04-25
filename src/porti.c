@@ -19,8 +19,7 @@ void handler_start(int signal){
             flag_end = 1;
         break;
         default:
-            printf("ERROR\n");
-            break;
+        break;
     }
 }
 
@@ -125,8 +124,19 @@ int main(int argc, char * argv[]){
     shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
     porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
 
+    /**
+     * Finita la configuarazione iniziale, abbasso il semaforo per comunicare al master che il porto e' pronto a ricevere il segnale SIGUSR1 per iniziare la generazione delle merci
+    */
+
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
+
+    /**
+     * Qui il porto andrà a generare la propria lista delle richieste e delle offerte giorno dopo giorno decrementato il parametro LIFE delle merci di 1 ogni giorno che passa
+     * Il peso totale tra offerte e richieste e' (SO_FILL/SO_DAYS/porti_selezionati) * perc_richieste
+     * La prima parte della moltiplicazione ci garantisce che tutto SO_FILL peso verrà generato al termine della simulazione
+     * La seconda parte e' una divisione del peso delle merci che un porto può generare tra richieste e offerte in modo da dividere tale quantità in due parti
+    */
 
     while(!flag_end){
         if(flag_gen){
@@ -148,7 +158,9 @@ int main(int argc, char * argv[]){
         merci_offerte_local = list_delete_zero(merci_offerte_local);
     }
 
-    list_print(merci_offerte_local, getpid());
+    /**
+     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione shared memory e liste offerte e richieste
+    */
     
     if(merci_offerte_local != NULL){
         list_free(merci_offerte_local);
@@ -163,6 +175,13 @@ int main(int argc, char * argv[]){
     shmdt(matr_offerte);
 }
 
+/**
+ * Questa funzione andrà a generara una lista delle offerte o delle richieste, a seconda di chi l'ha richiamata
+ * 1) Capisce tramite pid in quale riga della matrice delle richieste/offerte il porto si trova
+ * 2) Sapendo in che riga si trova continua a generare un indice di una merce a caso finché non ne trova uno che possa effettivamente generare
+ * 3) Trovata la merce da creare ne va a controllare il peso, se l'inserimento della merce causerebbe un eccedimento della capacità effettiva del porto nella giornata attuale non la inserisco
+*/
+
 node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale){
     int fill = 0;
     int id_merce, riga_matr = 0;
@@ -176,6 +195,11 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
         }
     }
     req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)*porti_selezionati) * ((double)percentuale / 100); 
+
+    /**
+     * Caso specifico in cui SO_MERCI e' impostato a 1
+    */
+   
     if (SO_MERCI == 1)
     {    
         flag_ctl = 1;
@@ -184,8 +208,7 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
                 fill += tipi_merce[0].weight;
                 if(fill > req_fill){
                     fill -= tipi_merce[0].weight;
-                    flag_ctl = 0;
-                    
+                    flag_ctl = 0;  
                 }
                 else{
                     merci_local = list_insert(merci_local, tipi_merce[0]);
