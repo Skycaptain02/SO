@@ -165,3 +165,18 @@ int list_length(node * first){
     }
     return length;
 }
+
+int * list_types(node * first){
+    node * temp;
+    int * types;
+    types = malloc(sizeof(int) * SO_MERCI);
+
+    if(first != NULL){
+        temp = first;
+        while(temp != NULL){
+            types[temp->elem.type-1] |= 1; 
+        }
+
+        return types;
+    }
+}

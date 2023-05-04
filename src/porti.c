@@ -29,23 +29,31 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, msg_porti_navi_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno, banchine = SO_BANCHINE;
     int merci_scadute = 0;
     int * matr_richieste, * matr_offerte, * porti_selezionati;
     
     double * arr_pos;
-    int i;
+    int i, msg_bytes;
+    struct msgnotifica msg_notifica;
+    struct msgscarico msg_scarico;
+
+    int * tipi_richieste;
+    
 
     srand(getpid());
     
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler_start;
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
 
+
+    tipi_richieste = malloc(sizeof(int)*SO_MERCI);
     /**
      * Creo i primi 4 porti su i 4 lati della mappa
      * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
@@ -131,6 +139,8 @@ int main(int argc, char * argv[]){
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
+    msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
+
     /**
      * Qui il porto andrà a generare la propria lista delle richieste e delle offerte giorno dopo giorno decrementato il parametro LIFE delle merci di 1 ogni giorno che passa
      * Il peso totale tra offerte e richieste e' (SO_FILL/SO_DAYS/porti_selezionati) * perc_richieste
@@ -152,6 +162,38 @@ int main(int argc, char * argv[]){
         else if(errno){
             printf("ERROR %s\n", strerror(errno));
         }
+
+        tipi_richieste = list_types(merci_richieste_local);
+
+        for(i = 0; i < SO_MERCI; i++){
+            printf("Merce -> %d, richiesta ->%d\n", i, tipi_richieste[i]);
+        }
+        
+        
+        msg_bytes = msgrcv(msg_porti_navi_id, &msg_notifica, sizeof(msg_notifica), getpid(), 0);
+        if(msg_bytes >= 0){
+            printf("type -> %ld, boat_pid -> %d\n", msg_notifica.type, msg_notifica.pid);
+            if(banchine > 0){
+                banchine--;
+                msg_scarico.type = msg_notifica.pid;
+                msg_scarico.merci = NULL;
+                msgsnd(msg_porti_navi_id, &msg_scarico, sizeof(node) * list_length(merci_richieste_local), 0);
+                printf("Inviato messaggio\n");
+            }
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        
+        
+        
+        
+
+        
+
+        
+       
+        
     }
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
