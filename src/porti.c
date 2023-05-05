@@ -37,10 +37,12 @@ int main(int argc, char * argv[]){
     
     double * arr_pos;
     int i, msg_bytes;
-    struct msgnotifica msg_notifica;
+    struct msgnotifica msg_notifica, msg_length;
     struct msgscarico msg_scarico;
 
     int * tipi_richieste;
+
+    merci * arr;
     
 
     srand(getpid());
@@ -161,38 +163,34 @@ int main(int argc, char * argv[]){
         }
         else if(errno){
             printf("ERROR %s\n", strerror(errno));
-        }
-
-        tipi_richieste = list_types(merci_richieste_local);
-
-        for(i = 0; i < SO_MERCI; i++){
-            printf("Merce -> %d, richiesta ->%d\n", i, tipi_richieste[i]);
+            exit(-1);
         }
         
-        
-        msg_bytes = msgrcv(msg_porti_navi_id, &msg_notifica, sizeof(msg_notifica), getpid(), 0);
+        msg_bytes = msgrcv(msg_porti_navi_id, &msg_notifica, sizeof(int), getpid(), 0); 
         if(msg_bytes >= 0){
             printf("type -> %ld, boat_pid -> %d\n", msg_notifica.type, msg_notifica.pid);
-            if(banchine > 0){
+            msg_length.type = msg_notifica.pid;
+            msg_length.pid = 0;
+            msg_length.length = list_length(merci_richieste_local);
+            printf("lunghezaz %d\n", msg_length.length);
+            msgsnd(msg_porti_navi_id, &msg_length, sizeof(int) * 2, 0);
+
+            msg_bytes = msgrcv(msg_porti_navi_id, &msg_notifica, sizeof(int), getpid(), 0); 
+
+            if(msg_bytes >= 0){
+                if(banchine > 0){
                 banchine--;
-                msg_scarico.type = msg_notifica.pid;
-                msg_scarico.merci = NULL;
-                msgsnd(msg_porti_navi_id, &msg_scarico, sizeof(node) * list_length(merci_richieste_local), 0);
+                arr = list_to_array(merci_richieste_local);
+                +
+                msgsnd(msg_porti_navi_id, &msg_scarico, sizeof(merci) * list_length(merci_richieste_local), 0);
                 printf("Inviato messaggio\n");
+            }
             }
         }
         if (errno == EINTR) {
             continue;
-        }
+        }  
         
-        
-        
-        
-
-        
-
-        
-       
         
     }
     if(merci_offerte_local != NULL){

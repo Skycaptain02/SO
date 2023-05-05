@@ -15,5 +15,6 @@ void list_print(node * first, int pid);
 node * list_delete_zero(node * first);
 int list_length(node * first);
 int * list_types(node * first);
+merci * list_to_array(node * first);
 
 #endif

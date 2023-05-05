@@ -180,3 +180,20 @@ int * list_types(node * first){
         return types;
     }
 }
+
+merci * list_to_array(node * first){
+    node * temp = first;
+    merci * arr;
+    int lenght, i = 0; 
+    
+    lenght = list_length(first);
+    if(first != NULL){
+        arr = malloc(sizeof(merci) * lenght);
+        while (temp != NULL){
+            arr[i] = temp->elem;
+            i++;
+            temp = temp->next;
+        }
+    }
+    return arr;
+}

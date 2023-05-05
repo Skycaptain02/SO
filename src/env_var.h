@@ -21,7 +21,7 @@
 #define SO_MERCI 2
 #define SO_SIZE 20
 #define SO_MIN_VITA 1
-#define SO_MAX_VITA 1
+#define SO_MAX_VITA 15
 #define SO_LATO 200
 #define SO_SPEED 100
 #define SO_CAPACITY 20
@@ -49,12 +49,13 @@ struct msgnotifica
 {
     long type;
     int pid;
+    int length;
 };
 
 
 struct msgscarico {
     long type; /* type of message */
-    int * merci;
+    merci * merci;
 };
 
 struct msgcarico

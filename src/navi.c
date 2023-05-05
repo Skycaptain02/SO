@@ -33,7 +33,7 @@ int main(int argc, char * argv[]){
     struct sigaction signal_blocker;
     sigset_t mask_block, mask_unblock;
     struct timespec tim, tim2;
-    struct msgnotifica msg_notifica;
+    struct msgnotifica msg_notifica, msg_length;
     struct msgscarico msg_scarico;
     
 
@@ -86,16 +86,31 @@ int main(int argc, char * argv[]){
             msg_notifica.type = pos_porti[harbor_des * 3];
             msg_notifica.pid = getpid();
 
-            msgsnd(msg_porti_navi_id, &msg_notifica, sizeof(msg_notifica), 0);
+            msgsnd(msg_porti_navi_id, &msg_notifica, sizeof(int), 0);
 
-            msg_bytes = msgrcv(msg_porti_navi_id, &msg_scarico, sizeof(node) * 500, getpid(), 0);
+            msg_bytes = msgrcv(msg_porti_navi_id, &msg_length, sizeof(int) * 2, getpid(), 0);
 
             if(msg_bytes >= 0){
-                printf("type -> %ld\n", msg_scarico.type);
+
+                msgsnd(msg_porti_navi_id, &msg_notifica, sizeof(int), 0);
+                printf("lunghezza %d\n", msg_length.length);
+                
+
+                msg_bytes = msgrcv(msg_porti_navi_id, &msg_scarico, sizeof(merci) * msg_length.length, getpid(), 0);
+                
+                if(msg_bytes >= 0){
+                    printf("HO RICEVUTO %d\n", msg_bytes);
+                    printf("type -> %d, life -> %d\n", msg_scarico.merci[1].type, msg_scarico.merci[0].life);
+                }
             }
+
+            
 
             if (errno == EINTR) {
                 continue;
+            }
+            else if(errno){
+                printf("ERROR %s\n", strerror(errno));
             }
             
             sigemptyset (&mask_unblock );
