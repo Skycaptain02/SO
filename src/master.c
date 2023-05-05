@@ -226,7 +226,7 @@ int main(int argc, char * argv[]){
     i = 0;
     k = 0;
     while(i != SO_DAYS){
-        * porti_selezionati = (rand() % (SO_PORTI-3))+4;
+        * porti_selezionati = (rand() % (SO_PORTI - 3)) + 4;
         porto_scelto = rand() % SO_PORTI;
 
         if(i == 0){

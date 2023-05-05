@@ -21,7 +21,7 @@
 #define SO_MERCI 2
 #define SO_SIZE 20
 #define SO_MIN_VITA 1
-#define SO_MAX_VITA 1
+#define SO_MAX_VITA 15
 #define SO_LATO 200
 #define SO_SPEED 100
 #define SO_CAPACITY 20
@@ -45,25 +45,9 @@ typedef struct node{
     struct node * next;
 }node;
 
-struct msgnotifica
+struct msgOp
 {
-    long type;
-    int pid;
+    long type; /*= pid del porto se coda tra più porti, = 1 se coda per singolo porto*/
+    int operation; /*Tipo di op da effettuare: -1 = no generico, 0 = richiesta e attracco, 1 = scarico, 2 = carico, 3 = leave*/
 };
-
-
-struct msgscarico {
-    long type; /* type of message */
-    int * merci;
-};
-
-struct msgcarico
-{
-    long type;
-    node * list;
-};
-
-
-
-
 #endif

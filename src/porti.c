@@ -18,17 +18,19 @@
 #include "../lib/list.h"
 
 node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale);
+void daily_gen();
 
 merci * tipi_merce;
 node * merci_richieste_local;
-node * merci_offerte_local = NULL;
+node * merci_offerte_local;
+int * matr_richieste, * matr_offerte, * porti_selezionati;
 
 int flag_end = 0, flag_gen = 0;
 
 void handler_start(int signal){
     switch(signal){
         case SIGUSR2:
-            flag_gen = 1;
+            daily_gen();
         break;
         case SIGABRT:
             flag_end = 1;
@@ -48,15 +50,13 @@ int main(int argc, char * argv[]){
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno, banchine = SO_BANCHINE;
     int merci_scadute = 0;
-    int * matr_richieste, * matr_offerte, * porti_selezionati;
+    
     
     double * arr_pos;
     int i, msg_bytes;
-    struct msgnotifica msg_notifica;
-    struct msgscarico msg_scarico;
+    struct msgOp Operation;
 
     int * tipi_richieste;
-    
 
     srand(getpid());
     
@@ -67,8 +67,8 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR2, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
 
-
     tipi_richieste = malloc(sizeof(int)*SO_MERCI);
+
     /**
      * Creo i primi 4 porti su i 4 lati della mappa
      * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
@@ -164,56 +164,24 @@ int main(int argc, char * argv[]){
     */
 
     while(!flag_end){
-        if(flag_gen){
-            if(merci_offerte_local != NULL){
-                merci_offerte_local = list_subtract(merci_offerte_local);
-                merci_offerte_local = list_delete_zero(merci_offerte_local);
-            }
-            perc_richieste = (rand() % 21) + 40;
-            merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
-            merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste);
-            flag_gen = 0;
-        }
-        else if(errno){
-            printf("ERROR %s\n", strerror(errno));
-        }
-
-        tipi_richieste = list_types(merci_richieste_local);
-
-        for(i = 0; i < SO_MERCI; i++){
-            printf("Merce -> %d, richiesta ->%d\n", i, tipi_richieste[i]);
-        }
-        
-        
-        msg_bytes = msgrcv(msg_porti_navi_id, &msg_notifica, sizeof(msg_notifica), getpid(), 0);
+        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int), getpid(), 0);
         if(msg_bytes >= 0){
-            printf("type -> %ld, boat_pid -> %d\n", msg_notifica.type, msg_notifica.pid);
             if(banchine > 0){
-                banchine--;
-                msg_scarico.type = msg_notifica.pid;
-                msg_scarico.merci = NULL;
-                msgsnd(msg_porti_navi_id, &msg_scarico, sizeof(node) * list_length(merci_richieste_local), 0);
-                printf("Inviato messaggio\n");
+                Operation.operation = 0;
             }
+            else{
+                Operation.operation = -1;
+            }
+            msgsnd(msg_porti_navi_id, &Operation, sizeof(int),0);
         }
-        if (errno == EINTR) {
-            continue;
-        }
         
-        
-        
-        
-
-        
-
-        
-       
         
     }
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
         merci_offerte_local = list_delete_zero(merci_offerte_local);
     }
+    
 
     /**
      * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione shared memory e liste offerte e richieste
@@ -300,4 +268,27 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
         }
     }
     return merci_local;
+}
+
+void daily_gen(){
+    int perc_richieste;
+    int shm_arr_richieste_id, shm_arr_offerte_id;
+    int * arr_richieste_local, * arr_offerte_local;
+
+    if(merci_offerte_local != NULL){
+        merci_offerte_local = list_subtract(merci_offerte_local);
+        merci_offerte_local = list_delete_zero(merci_offerte_local);
+    }
+    perc_richieste = (rand() % 21) + 40;
+    merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
+    merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste);
+    flag_gen = 0;
+
+    shm_arr_richieste_id = shmget(getpid(), sizeof(merci) * list_length(merci_richieste_local), 0600 | IPC_CREAT);
+    arr_richieste_local = shmat(shm_arr_richieste_id, NULL, 0);
+    shmctl(shm_arr_richieste_id, IPC_RMID, NULL);
+
+    shm_arr_offerte_id = shmget(getpid() + getppid(), sizeof(merci) * list_length(merci_offerte_local), 0600 | IPC_CREAT);
+    arr_offerte_local = shmat(shm_arr_offerte_id, NULL, 0);
+    shmctl(shm_arr_offerte_id, IPC_RMID, NULL);
 }
