@@ -45,26 +45,9 @@ typedef struct node{
     struct node * next;
 }node;
 
-struct msgnotifica
+struct msgOp
 {
-    long type;
-    int pid;
-    int length;
+    long type; /*= pid del porto se coda tra più porti, = 1 se coda per singolo porto*/
+    int operation; /*Tipo di op da effettuare: -1 = no generico, 0 = richiesta e attracco, 1 = scarico, 2 = carico, 3 = leave*/
 };
-
-
-struct msgscarico {
-    long type; /* type of message */
-    merci * merci;
-};
-
-struct msgcarico
-{
-    long type;
-    node * list;
-};
-
-
-
-
 #endif

@@ -16,5 +16,6 @@ node * list_delete_zero(node * first);
 int list_length(node * first);
 int * list_types(node * first);
 merci * list_to_array(node * first);
+node * array_to_list(merci * first, int length);
 
 #endif

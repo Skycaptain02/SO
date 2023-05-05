@@ -197,3 +197,16 @@ merci * list_to_array(node * first){
     }
     return arr;
 }
+
+node * array_to_list(merci * arr, int length){
+    node * first;
+    int i;
+
+    for(i = 0; i < length; i++){
+        if(arr[i].type != -1){
+            first = list_insert(first, arr[i]);
+        }
+    }
+
+    return first;
+}
