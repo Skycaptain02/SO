@@ -8,6 +8,8 @@ typedef struct node{
     merci elem;
     struct node * prev;
     struct node * next;
+    int index;
+    pid_t pid;
 }node;
 
 
@@ -19,5 +21,6 @@ node * list_subtract(node * first);
 node * list_get_first(node * first);
 void list_print(node * first, int pid);
 node * list_delete_zero(node * first);
+node * index_adjust(node * first);
 
 #endif

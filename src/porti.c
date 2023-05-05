@@ -1,3 +1,18 @@
+/**
+ * Aggiungere alla struct merce il pid del porto che l'ha creato e l'indice di lista del nodo
+ * Nel momento della generazione dei nodi giorno per giorno bisogna incrementare in shared memeory un contatore che conti il numero di nodi totali creati da tutti i porti
+ * Avendo un contatore globale noi sappiamo quanti nodi andremo a creare e quanto grande l'array in shared memory sarà
+ * Giorno dopo giorno andremo a relloacare, senza ridefinirla nuovamente, la grandezza dell'array in shared memory che sarà grande quanto il contatore di tutti i nodi creati dai porti giorno dopo giorno
+ * La nave prima di attraccare andrà alla ricerca, all'interno dell'array, di almeno una merce creata dal porto a cui vuole attraccare a cui essa può soddisfare una richiesta (Controllo pid, controllo corrispondenza
+ * tra merce presente sulla nave e merce richiesta dal porto)
+ * La nave una volta attracata andrà a scorrere l'array prensente in shared memory alla ricerca del pid del porto in cui e' attraccata (presente nel nodo stesso), e andrà a porre 0 tutte le celle 
+ * dell'array che la nave può soddisfare
+ * Nel momendo in cui soddisfa una richieste la nave manderà al porto  un messaggio in cui vi sarà scritto l'indice del nodo della lista che porto dovrà andare a cancellare
+ * Nel momento che viene soddisfatta una richiesta ogni nave andrà a incrementare un ulteriore contatore in shared memory che segnerà il numero di merce venduta e andrà a decrementare il contatore dei nodi totali
+ * In modo che il giorno successivo la shared memory sarà nuovamente riallocata correttamente, e' possibile sia reallocare che cancellare e ridefinire nuovamente
+ * Come gestire però i semafori?
+*/
+
 #include "env_var.h"
 #include "../lib/ipc.h"
 #include "../lib/list.h"
