@@ -1,5 +1,6 @@
 #include "env_var.h"
 #include "../lib/ipc.h"
+#include "../lib/list.h"
 #include <math.h>
 
 int flag_end = 0, flag_day = 0;
@@ -14,7 +15,7 @@ void handler_start(int signal){
         break;
         default:
             printf("ERROR\n");
-            break;
+        break;
     }
 
 }
@@ -23,21 +24,24 @@ int main(int argc, char * argv[]){
     
     double ship_pos_x;
     double ship_pos_y;
-    int sem_config_id, sem_offerte_richieste_id;
+    int sem_config_id, sem_offerte_richieste_id, msg_porti_navi_id;
     double * pos_porti;
-    int shm_pos_porti_id, harbor_des;
+    int shm_pos_porti_id, harbor_des, msg_bytes;
     struct sigaction sa;
     double distanza = 0, dist_parz_x, dist_parz_y, time_to_wait = 0;
 
     struct sigaction signal_blocker;
     sigset_t mask_block, mask_unblock;
     struct timespec tim, tim2;
+    struct msgnotifica msg_notifica;
+    struct msgscarico msg_scarico;
     
 
     srand(getpid());
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler_start;
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGUSR1, &sa, NULL);
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
@@ -64,6 +68,8 @@ int main(int argc, char * argv[]){
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
+    msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
+
     while(!flag_end){
         if(flag_day){
             sigemptyset (&mask_block );
@@ -77,6 +83,21 @@ int main(int argc, char * argv[]){
             tim.tv_sec = time_to_wait;
             nanosleep(&tim, &tim2);
 
+            msg_notifica.type = pos_porti[harbor_des * 3];
+            msg_notifica.pid = getpid();
+
+            msgsnd(msg_porti_navi_id, &msg_notifica, sizeof(msg_notifica), 0);
+
+            msg_bytes = msgrcv(msg_porti_navi_id, &msg_scarico, sizeof(node) * 500, getpid(), 0);
+
+            if(msg_bytes >= 0){
+                printf("type -> %ld\n", msg_scarico.type);
+            }
+
+            if (errno == EINTR) {
+                continue;
+            }
+            
             sigemptyset (&mask_unblock );
             sigaddset (&mask_unblock , SIGUSR1) ;
             sigaddset (&mask_unblock , SIGABRT) ;

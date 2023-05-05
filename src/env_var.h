@@ -39,4 +39,31 @@ typedef struct merci{
     int life;
 }merci;
 
+typedef struct node{
+    merci elem;
+    struct node * prev;
+    struct node * next;
+}node;
+
+struct msgnotifica
+{
+    long type;
+    int pid;
+};
+
+
+struct msgscarico {
+    long type; /* type of message */
+    int * merci;
+};
+
+struct msgcarico
+{
+    long type;
+    node * list;
+};
+
+
+
+
 #endif
