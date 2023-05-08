@@ -127,7 +127,7 @@ int main(int argc, char * argv[]){
                 
                 exit(0);
             default:
-                arr_pos_porti[i * 3] = pid_porti[i];    
+                
                 printf("creato porto i -> %d\n", i);
             break;
         }
@@ -143,17 +143,20 @@ int main(int argc, char * argv[]){
         switch (pid_porti[i] = fork())
         {
             case -1:
-                    printf("C'è stato un errore nel fork per i porti: %s", strerror(errno));
-                    exit(-1);
+                printf("C'è stato un errore nel fork per i porti: %s", strerror(errno));
+                exit(-1);
                 break;
             case 0:
                 execve("../bin/porti", args_porti , NULL);
                 exit(0);
             default:
-                arr_pos_porti[i * 3] = pid_porti[i];
                 printf("creato porto i -> %d\n", i);
             break;
         }
+    }
+
+    for(i = 0; i < SO_PORTI; i++){
+        arr_pos_porti[i * 3] = (unsigned int)pid_porti[i];
     }
 
     /**
@@ -163,7 +166,7 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
-    gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 1);
+    gen_richiesta_offerta(pid_porti, arr_richieste, arr_offerte, 0);
     sem_reserve(sem_offerte_richieste_id, 0);
     
     /**

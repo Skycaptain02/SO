@@ -1,18 +1,3 @@
-/**
- * Aggiungere alla struct merce il pid del porto che l'ha creato e l'indice di lista del nodo
- * Nel momento della generazione dei nodi giorno per giorno bisogna incrementare in shared memeory un contatore che conti il numero di nodi totali creati da tutti i porti
- * Avendo un contatore globale noi sappiamo quanti nodi andremo a creare e quanto grande l'array in shared memory sarà
- * Giorno dopo giorno andremo a relloacare, senza ridefinirla nuovamente, la grandezza dell'array in shared memory che sarà grande quanto il contatore di tutti i nodi creati dai porti giorno dopo giorno
- * La nave prima di attraccare andrà alla ricerca, all'interno dell'array, di almeno una merce creata dal porto a cui vuole attraccare a cui essa può soddisfare una richiesta (Controllo pid, controllo corrispondenza
- * tra merce presente sulla nave e merce richiesta dal porto)
- * La nave una volta attracata andrà a scorrere l'array prensente in shared memory alla ricerca del pid del porto in cui e' attraccata (presente nel nodo stesso), e andrà a porre 0 tutte le celle 
- * dell'array che la nave può soddisfare
- * Nel momendo in cui soddisfa una richieste la nave manderà al porto  un messaggio in cui vi sarà scritto l'indice del nodo della lista che porto dovrà andare a cancellare
- * Nel momento che viene soddisfatta una richiesta ogni nave andrà a incrementare un ulteriore contatore in shared memory che segnerà il numero di merce venduta e andrà a decrementare il contatore dei nodi totali
- * In modo che il giorno successivo la shared memory sarà nuovamente riallocata correttamente, e' possibile sia reallocare che cancellare e ridefinire nuovamente
- * Come gestire però i semafori?
-*/
-
 #include "env_var.h"
 #include "../lib/ipc.h"
 #include "../lib/list.h"
@@ -75,6 +60,9 @@ int main(int argc, char * argv[]){
      * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
     */
 
+    sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
+    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
+
     if(atoi(argv[1]) != 0){
         switch (atoi(argv[1]))
         {
@@ -117,19 +105,20 @@ int main(int argc, char * argv[]){
     arr_pos = shmat(shm_pos_id, NULL, 0);
 
     for(i = 0; i < SO_PORTI; i++){
-        if(arr_pos[i * 3] == getpid()){
-            arr_pos[(i * 3) + 1] = harbor_pos_x;
-            arr_pos[(i * 3) + 2] = harbor_pos_y;
+        if((unsigned int)arr_pos[i * 3] == getpid()){
+            arr_pos[i * 3 + 1] = harbor_pos_x;
+            arr_pos[i * 3 + 2] = harbor_pos_y;
             break;
         }
     }
+
+    
 
     /**
      * Devo aspettare che il master termini la configurazione delle matrici delle offerte e delle richieste prima di continuare
     */
 
-    sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
-    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
+    
 
     /**
      * Allocuazione delle shared memory
@@ -156,23 +145,39 @@ int main(int argc, char * argv[]){
 
     msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
 
-    /**
-     * Qui il porto andrà a generare la propria lista delle richieste e delle offerte giorno dopo giorno decrementato il parametro LIFE delle merci di 1 ogni giorno che passa
-     * Il peso totale tra offerte e richieste e' (SO_FILL/SO_DAYS/porti_selezionati) * perc_richieste
-     * La prima parte della moltiplicazione ci garantisce che tutto SO_FILL peso verrà generato al termine della simulazione
-     * La seconda parte e' una divisione del peso delle merci che un porto può generare tra richieste e offerte in modo da dividere tale quantità in due parti
-    */
-
     while(!flag_end){
-        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int), getpid(), 0);
+        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, getpid(), 0);                /*Attendo messaggio dalla nave*/
         if(msg_bytes >= 0){
             if(banchine > 0){
+                banchine--;
+                Operation.extra = 0;
+                Operation.type = getpid();
                 Operation.operation = 0;
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                               /*Rispondo alla nave se può attraccare o meno*/
+                printf("Successo [%d] -> MANDO MESSAGGIO\n", getpid());
+                msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, getpid(), 0);        /*Aspetto decisione su operazione della nave*/
+                if(msg_bytes >= 0){
+                    switch (Operation.operation)
+                    {
+                        case 1: /*Caso di scarico*/
+                            Operation.operation = 3;
+                            Operation.extra = list_length(merci_richieste_local);
+                            msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                      /*Comunico lunghezza array richieste alla nave*/
+
+                        break;
+                        case 2: /*Caso di carico*/
+                            Operation.operation = 3;
+                            Operation.extra = list_length(merci_offerte_local);
+                            msgsnd(msg_porti_navi_id, &Operation, sizeof(int)*2, 0);                        /*Comunico lunghezza array offerte alla nave*/
+                        break;
+                    }
+                }
             }
             else{
                 Operation.operation = -1;
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                              /*Comunico alla nave che non può attraccare*/
             }
-            msgsnd(msg_porti_navi_id, &Operation, sizeof(int),0);
+            
         }
         
         
@@ -271,9 +276,17 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
 }
 
 void daily_gen(){
+
     int perc_richieste;
     int shm_arr_richieste_id, shm_arr_offerte_id;
     int * arr_richieste_local, * arr_offerte_local;
+    
+    if(arr_richieste_local != NULL){
+        shmdt(arr_richieste_local);
+    }
+    if(arr_richieste_local != NULL){
+        shmdt(arr_offerte_local);
+    }
 
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
@@ -285,10 +298,12 @@ void daily_gen(){
     flag_gen = 0;
 
     shm_arr_richieste_id = shmget(getpid(), sizeof(merci) * list_length(merci_richieste_local), 0600 | IPC_CREAT);
+    
     arr_richieste_local = shmat(shm_arr_richieste_id, NULL, 0);
     shmctl(shm_arr_richieste_id, IPC_RMID, NULL);
 
     shm_arr_offerte_id = shmget(getpid() + getppid(), sizeof(merci) * list_length(merci_offerte_local), 0600 | IPC_CREAT);
+    printf("[PORTO] -> %d, id_offerte: %d\n",getpid(), shm_arr_offerte_id );
     arr_offerte_local = shmat(shm_arr_offerte_id, NULL, 0);
     shmctl(shm_arr_offerte_id, IPC_RMID, NULL);
 }

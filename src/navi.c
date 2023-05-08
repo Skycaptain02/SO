@@ -38,8 +38,11 @@ int main(int argc, char * argv[]){
     int shm_pos_porti_id, shm_richieste_local_id, shm_offerte_local_id;
     int * richieste_local, * offerte_local, * porti_selezionati;
     double * pos_porti;
+    int current_weight = 0;
     struct sigaction sa;
     struct msgOp Operation;
+    merci * merc_porto;
+    int i;
     
     srand(getpid());
 
@@ -69,20 +72,49 @@ int main(int argc, char * argv[]){
     sem_reserve(sem_config_id, 0);
 
     msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
-
+    for(i = 0; i < SO_PORTI; i++){
+        printf("PID -> %d, POS_X -> %f, POS_Y -> %f\n", (unsigned int)pos_porti[i*3], pos_porti[i*3+1], pos_porti[i*3+2]);
+    }
+    
     while(!flag_end){
         travel(distanza);
-        Operation.type = pos_porti[harbor_des * 3];
+        Operation.type = (unsigned int)pos_porti[harbor_des * 3];
         Operation.operation = 0;
-        msgsnd(msg_porti_navi_id, &Operation, sizeof(int),0);
-
-        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int), pos_porti[harbor_des * 3], 0);
-
+        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2,0);                                                   
+        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);           
+        printf("HO RICEVUTO DA QUESTO PORTO -> %d\n", (unsigned int)pos_porti[harbor_des * 3]);
+        printf("Ho ricevuto op: %d, bytes %d\n", Operation.operation, msg_bytes);
         if(msg_bytes >= 0){
-            if(Operation.operation = 0){
+            if(Operation.operation == 0){                                                                           
                 printf("Posso attraccare\n");
+                Operation.operation = (current_weight > 0) ? 1 : 2;                                                  
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                                           
+                msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);   
+                if(msg_bytes >= 0 && Operation.operation == 3){ 
+                    printf("CIAOOO\n");                                                   
+                    if(current_weight > 0){
+                        shm_richieste_local_id = shmget((unsigned int)pos_porti[harbor_des * 3], sizeof(merci) * Operation.extra, 0600);
+                        merc_porto = shmat(shm_richieste_local_id, NULL, 0);
+                        printf("SCARICO\n");
+                    }
+                    else{
+                        while(shm_offerte_local_id = shmget((unsigned int)pos_porti[harbor_des*3] + getppid(), sizeof(merci) * Operation.extra, 0600)){
+                            printf("offerte id : %d\n", shm_offerte_local_id);
+                            printf("%s\n",strerror(errno));
+                        }
+                        
+                        
+                        merc_porto = shmat(shm_offerte_local_id, NULL, 0);
+                        
+                        printf("CARICO\n");
+                    }
+                    for(i = 0; i <  Operation.extra; i++){
+                        printf("%d\n", merc_porto[i].type);
+                    }
+                }
+
             }
-            else{
+            else{                                                                                                   
                 printf("Me ne vado\n");
             }
             

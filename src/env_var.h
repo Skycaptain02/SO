@@ -22,13 +22,13 @@
 #define SO_SIZE 20
 #define SO_MIN_VITA 1
 #define SO_MAX_VITA 15
-#define SO_LATO 200
+#define SO_LATO 500
 #define SO_SPEED 100
 #define SO_CAPACITY 20
 #define SO_BANCHINE 20
 #define SO_FILL 1000
 #define SO_LOADSPEED 20
-#define SO_DAYS 2
+#define SO_DAYS 5
 #define SO_STORM_DURATION 20
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20
@@ -48,6 +48,7 @@ typedef struct node{
 struct msgOp
 {
     long type; /*= pid del porto se coda tra più porti, = 1 se coda per singolo porto*/
-    int operation; /*Tipo di op da effettuare: -1 = no generico, 0 = richiesta e attracco, 1 = scarico, 2 = carico, 3 = leave*/
+    int operation; /*Tipo di op da effettuare: -1 = no generico, 0 = richiesta e attracco, 1 = scarico, 2 = carico, 3 = extra, 4 = leave*/
+    int extra; /*Campo extra per valori possibili ma non sicuri (es key di ICP o lunghezza array)*/
 };
 #endif
