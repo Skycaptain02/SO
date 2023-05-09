@@ -14,11 +14,11 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int i, j, k, z, status, errno;
 
-    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id; 
+    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id;
     int sem_config_id, sem_offerte_richieste_id;
     int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; 
 
-    int * arr_richieste, * arr_offerte;
+    int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global;
     int * porti_random, * random_index;
     double * arr_pos_porti;
     int * porti_selezionati;
@@ -86,6 +86,12 @@ int main(int argc, char * argv[]){
     porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
     /*fine sezione creazione shared memory per la generazione delle richieste e offerte per i porti*/
 
+    shm_richieste_global_id = shmget(getpid() + 6, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
+    arr_richieste_global = shmat(shm_richieste_global_id, NULL, 0);
+
+    shm_offerte_global_id = shmget(getpid() + 7, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
+    arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
+
     /*Sezione creazione semafori per configurazione*/
     sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
     sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
@@ -127,8 +133,6 @@ int main(int argc, char * argv[]){
                 
                 exit(0);
             default:
-                
-                printf("creato porto i -> %d\n", i);
             break;
         }
     }
@@ -150,14 +154,16 @@ int main(int argc, char * argv[]){
                 execve("../bin/porti", args_porti , NULL);
                 exit(0);
             default:
-                printf("creato porto i -> %d\n", i);
             break;
         }
     }
 
     for(i = 0; i < SO_PORTI; i++){
         arr_pos_porti[i * 3] = (unsigned int)pid_porti[i];
+        arr_offerte_global[i * (SO_MERCI + 1)] = (unsigned int)pid_porti[i];
+        arr_richieste_global[i * (SO_MERCI + 1)] = (unsigned int)pid_porti[i];
     }
+
 
     /**
      * Dopo aver generato tutti i processi porti, vado a creare le matrici delle richieste e delle offerte, creade un semaforo che comunicherà
@@ -215,6 +221,10 @@ int main(int argc, char * argv[]){
 
     while(semctl(sem_config_id, 0, GETVAL) != 0);
 
+    printf("INIZIO SIMULAZIONE\n");
+
+
+
     for(i = 0; i < SO_NAVI; i++){
         kill(pid_navi[i], SIGUSR1);
     }
@@ -231,7 +241,6 @@ int main(int argc, char * argv[]){
     while(i != SO_DAYS){
         * porti_selezionati = (rand() % (SO_PORTI - 3)) + 4;
         porto_scelto = rand() % SO_PORTI;
-
         if(i == 0){
             random_index = malloc(sizeof(int) * SO_PORTI);
             porti_random = malloc(sizeof(int) * (* porti_selezionati));
@@ -240,6 +249,7 @@ int main(int argc, char * argv[]){
            porti_random = malloc(sizeof(int) * (* porti_selezionati));
         }
 
+        j = 0;
         while(j != SO_PORTI){
             random_index[j] = j;
             if(k < * porti_selezionati){

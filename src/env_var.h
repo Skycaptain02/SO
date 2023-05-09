@@ -14,6 +14,7 @@
 #include <sys/shm.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/wait.h>
 
 
 #define SO_NAVI 1

@@ -104,13 +104,16 @@ node * list_get_first(node * first){
     return first;
 }
 
-node * list_delete_zero(node * first){
+node * list_delete_zero(node * first, int * matr_global, int riga_matrice){
     node * temp;
     int i = 0, length;
     temp = list_get_first(first);
     length = list_length(temp);
     while(temp->next != NULL){
         if(temp->elem.life == 0){
+            printf("PRIMA: %d, PID: %d\n", matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type],getpid());
+            matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
+            printf("DOPO: PID: %d,  %d\n",getpid(), matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type]);
             if(i == 0){
                 temp->next->prev = NULL;
             }
@@ -126,6 +129,7 @@ node * list_delete_zero(node * first){
         temp = temp->next;
     }
     if(temp->elem.life == 0){
+        matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
         if(length == 1){
             return NULL;
         }

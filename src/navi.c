@@ -54,6 +54,7 @@ int main(int argc, char * argv[]){
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
     while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
 
+
     shm_pos_porti_id = shmget(getppid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
     pos_porti = shmat(shm_pos_porti_id, NULL, 0);  
 
@@ -93,18 +94,18 @@ int main(int argc, char * argv[]){
                 if(msg_bytes >= 0 && Operation.operation == 3){ 
                     printf("CIAOOO\n");                                                   
                     if(current_weight > 0){
-                        shm_richieste_local_id = shmget((unsigned int)pos_porti[harbor_des * 3], sizeof(merci) * Operation.extra, 0600);
-                        merc_porto = shmat(shm_richieste_local_id, NULL, 0);
+                        /*shm_richieste_local_id = shmget((unsigned int)pos_porti[harbor_des * 3], sizeof(merci) * Operation.extra, 0600);
+                        merc_porto = shmat(shm_richieste_local_id, NULL, 0);*/
                         printf("SCARICO\n");
                     }
                     else{
-                        while(shm_offerte_local_id = shmget((unsigned int)pos_porti[harbor_des*3] + getppid(), sizeof(merci) * Operation.extra, 0600)){
+                        /*while(shm_offerte_local_id = shmget((unsigned int)pos_porti[harbor_des*3] + getppid(), sizeof(merci) * Operation.extra, 0600)){
                             printf("offerte id : %d\n", shm_offerte_local_id);
                             printf("%s\n",strerror(errno));
                         }
                         
                         
-                        merc_porto = shmat(shm_offerte_local_id, NULL, 0);
+                        merc_porto = shmat(shm_offerte_local_id, NULL, 0);*/
                         
                         printf("CARICO\n");
                     }

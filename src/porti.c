@@ -2,20 +2,26 @@
 #include "../lib/ipc.h"
 #include "../lib/list.h"
 
-node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale);
+node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale, int flag);
 void daily_gen();
 
 merci * tipi_merce;
 node * merci_richieste_local;
 node * merci_offerte_local;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
+int * arr_richieste_global, * arr_offerte_global;
+int riga_matrice;
 
 int flag_end = 0, flag_gen = 0;
+
+
 
 void handler_start(int signal){
     switch(signal){
         case SIGUSR2:
+            printf("PRIMA [PID: %d] -> [1]: %d, [2]: %d, List_Length: %d\n", getpid(), arr_offerte_global[(riga_matrice*(SO_MERCI+1))+1], arr_offerte_global[(riga_matrice*(SO_MERCI+1))+2], list_length(merci_offerte_local));
             daily_gen();
+            printf("DOPO [PID: %d] -> [1]: %d, [2]: %d, List_Length: %d\n", getpid(), arr_offerte_global[(riga_matrice*(SO_MERCI+1))+1], arr_offerte_global[(riga_matrice*(SO_MERCI+1))+2], list_length(merci_offerte_local));
         break;
         case SIGABRT:
             flag_end = 1;
@@ -31,9 +37,11 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, msg_porti_navi_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id;
+    int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     int sem_config_id, sem_offerte_richieste_id;
-    int perc_richieste, perc_offerte, errno, banchine = SO_BANCHINE;
+    int perc_richieste, perc_offerte, errno;
+    int banchine = SO_BANCHINE;
     int merci_scadute = 0;
     
     
@@ -136,6 +144,19 @@ int main(int argc, char * argv[]){
     shm_porti_selezionati_id = shmget(getppid() + 5, sizeof(int), 0600 | IPC_CREAT);
     porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
 
+    shm_richieste_global_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI+1)*SO_PORTI), 0600 | IPC_CREAT);
+    arr_richieste_global = shmat(shm_richieste_global_id, NULL, 0);
+
+    shm_offerte_global_id = shmget(getppid() + 7, sizeof(int) * ((SO_MERCI+1)*SO_PORTI), 0600 | IPC_CREAT);
+    arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
+
+    i = 0;
+    while(arr_richieste_global[i*(SO_MERCI+1)] != getpid()){
+        i++;
+    }
+    riga_matrice = i;
+    i = 0;
+
     /**
      * Finita la configuarazione iniziale, abbasso il semaforo per comunicare al master che il porto e' pronto a ricevere il segnale SIGUSR1 per iniziare la generazione delle merci
     */
@@ -184,7 +205,7 @@ int main(int argc, char * argv[]){
     }
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
-        merci_offerte_local = list_delete_zero(merci_offerte_local);
+        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, riga_matrice);
     }
     
 
@@ -212,18 +233,11 @@ int main(int argc, char * argv[]){
  * 3) Trovata la merce da creare ne va a controllare il peso, se l'inserimento della merce causerebbe un eccedimento della capacità effettiva del porto nella giornata attuale non la inserisco
 */
 
-node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale){
+node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_selezionati, int * matrice, int percentuale, int flag){
     int fill = 0;
-    int id_merce, riga_matr = 0;
+    int id_merce;
     int i, flag_ctl = 1;
     double req_fill;
-
-    for(i = 0; i < SO_PORTI; i++){
-        if(getpid() == matrice[i*(SO_MERCI+1)]){
-            riga_matr = i;
-            break;
-        }
-    }
     req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)*porti_selezionati) * ((double)percentuale / 100); 
 
     /**
@@ -234,7 +248,7 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
     {    
         flag_ctl = 1;
         while(flag_ctl){
-            if(matrice[(riga_matr * (2)) + 1] == 1){
+            if(matrice[(riga_matrice * (2)) + 1] == 1){
                 fill += tipi_merce[0].weight;
                 if(fill > req_fill){
                     fill -= tipi_merce[0].weight;
@@ -254,7 +268,7 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
             flag_ctl = 1;
             id_merce = rand() % SO_MERCI;
             while(flag_ctl){
-                if(matrice[riga_matr * (SO_MERCI + 1) + (id_merce + 1)] == 1){
+                if(matrice[riga_matrice * (SO_MERCI + 1) + (id_merce + 1)] == 1){
                     flag_ctl = 0;
                 }
                 else{
@@ -269,6 +283,11 @@ node * request_offer_gen(merci * tipi_merce, node * merci_local, int * porti_sel
             }
             else{
                 merci_local = list_insert(merci_local, tipi_merce[id_merce]);
+                if(flag){
+                    arr_offerte_global[(riga_matrice * (SO_MERCI+1))+tipi_merce[id_merce].type] += 1;
+                }else{
+                    arr_offerte_global[(riga_matrice * (SO_MERCI+1))+tipi_merce[id_merce].type] += 1;
+                }
             }
         }
     }
@@ -290,11 +309,11 @@ void daily_gen(){
 
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
-        merci_offerte_local = list_delete_zero(merci_offerte_local);
+        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, riga_matrice);
     }
     perc_richieste = (rand() % 21) + 40;
-    merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste);
-    merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste);
+    merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste, 0);
+    merci_offerte_local = request_offer_gen(tipi_merce, merci_offerte_local, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
     flag_gen = 0;
 
     shm_arr_richieste_id = shmget(getpid(), sizeof(merci) * list_length(merci_richieste_local), 0600 | IPC_CREAT);
