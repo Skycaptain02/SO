@@ -6,6 +6,9 @@ int main(){
     merci merce;
     merci * arr;
     int i;
+    int * life;
+
+    life = malloc(sizeof(int));
 
     merce.type = 1;
     merce.life = 12;
@@ -37,28 +40,11 @@ int main(){
 
     first = list_insert(first,merce);
 
-    list_print(first, getpid());
+    list_print(first);
 
-    arr = list_to_array(first);
+    first = list_remove_elem(first, 1, life);
 
-    printf("Before delete 0 and 3\n");
-
-    for(i = 0; i < list_length(first); i++){
-        printf("Type: %d\n", arr[i].type);
-    }
-
-    arr[0].type = -1;
-    arr[3].type = -1;
-
-    printf("After delete 0 and 3\n");
-
-    for(i = 0; i < list_length(first); i++){
-        printf("Type: %d\n", arr[i].type);
-    }
-
-    printf("length: %d\n", list_length(first));
-
-    first = array_to_list(arr, list_length(first));
-    list_print(first, getpid());
-    printf("length after: %d\n", list_length(first));
+    printf("Vita : %d\n", *life);
+    
+    list_print(first);
 }

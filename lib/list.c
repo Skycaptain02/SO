@@ -143,14 +143,14 @@ node * list_delete_zero(node * first, int * matr_global, int * qta_merci_scadute
     return first;
 }
 
-void list_print(node * first, int pid){
+void list_print(node * first){
     node * temp;
 
     if(first != NULL){
         temp = first;
         temp = list_get_first(temp);
         while(temp != NULL){
-            printf("Tipo -> %d, Peso -> %d, Vita -> %d, PID -> %d\n", temp->elem.type, temp->elem.weight, temp->elem.life, pid);
+            printf("Tipo -> %d, Peso -> %d, Vita -> %d, PID -> %d\n", temp->elem.type, temp->elem.weight, temp->elem.life, getpid());
             temp = temp->next;
         }
     }
@@ -209,6 +209,44 @@ node * array_to_list(merci * arr, int length){
         if(arr[i].type != -1){
             first = list_insert(first, arr[i]);
         }
+    }
+    return first;
+}
+
+node * list_remove_elem(node * first, int type, int * return_life){
+    node * temp;
+
+    if(first != NULL){
+        temp = first;
+        while(temp != NULL){
+            
+            if(temp->elem.type == type){
+                if(temp->prev == NULL && temp->next == NULL){
+                    first == NULL;
+                }
+                else{
+                    if(temp->prev == NULL){
+                        temp->next->prev = NULL;
+                        printf("CIAO\n");
+                    }
+                    else{
+                        if(temp->next == NULL){
+                            temp->prev->next = NULL;
+                        }
+                        else{
+                            temp->prev->next = temp->next;
+                            temp->next->prev = temp->prev;
+                        }
+                    }
+                    
+                }
+                *return_life = temp->elem.life;
+                temp = temp->next;
+                break;
+            }
+            temp = temp->next;
+        }
+        first = list_get_first(temp);
     }
     return first;
 }
