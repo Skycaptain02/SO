@@ -32,7 +32,7 @@ int main(int argc, char * argv[]){
     int sem_config_id, sem_offerte_richieste_id;
 
     int msg_porti_navi_id;
-    int msg_bytes;
+    int msg_bytes, riga_matrice = -1;
     double distanza;
 
     int shm_pos_porti_id, shm_richieste_local_id, shm_offerte_local_id;
@@ -40,11 +40,18 @@ int main(int argc, char * argv[]){
     double * pos_porti;
     int current_weight = 0;
     struct sigaction sa;
-    struct msgOp Operation;
-    merci * merc_porto;
-    int i;
+    struct msgOp Operation, Info_vita;
+    int * arr_richieste_global, * arr_offerte_global;
+    int i, merce_rand;
+    node * stiva;
+    int shm_merci_id;
+    merci * tipi_merce;
+    merci temp;
     
     srand(getpid());
+
+    shm_merci_id = shmget(getppid() + 1, sizeof(tipi_merce) * SO_MERCI, 0600 | IPC_CREAT);
+    tipi_merce = shmat(shm_merci_id, NULL, 0);
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler_start;
@@ -94,24 +101,63 @@ int main(int argc, char * argv[]){
                 if(msg_bytes >= 0 && Operation.operation == 3){ 
                     printf("CIAOOO\n");                                                   
                     if(current_weight > 0){
-                        /*shm_richieste_local_id = shmget((unsigned int)pos_porti[harbor_des * 3], sizeof(merci) * Operation.extra, 0600);
-                        merc_porto = shmat(shm_richieste_local_id, NULL, 0);*/
+                        shm_richieste_local_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
+                        arr_richieste_global = shmat(shm_richieste_local_id, NULL, 0);
+                        if(riga_matrice == -1){
+                            i = 0;
+                            while(arr_richieste_global[i*(SO_MERCI+1)] != (unsigned int)pos_porti[harbor_des * 3]){
+                                i++;
+                            }
+                            riga_matrice = i;
+                            i = 0;
+                        }
+                        
+
                         printf("SCARICO\n");
                     }
                     else{
-                        /*while(shm_offerte_local_id = shmget((unsigned int)pos_porti[harbor_des*3] + getppid(), sizeof(merci) * Operation.extra, 0600)){
-                            printf("offerte id : %d\n", shm_offerte_local_id);
-                            printf("%s\n",strerror(errno));
+                        printf("CARICO\n");
+                        shm_offerte_local_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
+                        arr_offerte_global = shmat(shm_offerte_local_id, NULL, 0);
+                        if(riga_matrice == -1){
+                            i = 0;
+                            while(arr_offerte_global[i * (SO_MERCI+1)] != (unsigned int)pos_porti[harbor_des * 3]){
+                                i++;
+                            }
+                            riga_matrice = i;
+                            i = 0;
+                        }
+
+                        while(current_weight <= SO_CAPACITY){
+                            merce_rand = rand() % SO_MERCI + 1;
+                            if(arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] != 0){
+                                arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] -= 1;
+                                if(current_weight += tipi_merce[merce_rand - 1].weight <= SO_CAPACITY){
+                                    Info_vita.type = (unsigned int)pos_porti[harbor_des * 3];
+                                    Info_vita.operation = 4;
+                                    Info_vita.extra = tipi_merce[merce_rand - 1].type;
+                                    msgsnd(msg_porti_navi_id, &Info_vita, sizeof(int) * 2, 0);
+                                    msg_bytes = msgrcv(msg_porti_navi_id, &Info_vita, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);
+                                    if(msg_bytes >= 0 && Info_vita.operation == 4){
+                                        temp = tipi_merce[merce_rand-1];
+                                        temp.life = Info_vita.extra;
+                                        stiva = list_insert(stiva, temp); 
+                                    }
+                                }   
+                                else{
+                                    current_weight -= tipi_merce[merce_rand - 1].weight;
+                                }
+                                
+                                printf("Carico merce : %d, peso: %d, peso tot: %d\n",merce_rand, tipi_merce[merce_rand - 1].weight, current_weight);
+                            }
+                            else{
+                                merce_rand = rand() % SO_MERCI + 1;
+                            }
+                            
                         }
                         
-                        
-                        merc_porto = shmat(shm_offerte_local_id, NULL, 0);*/
-                        
-                        printf("CARICO\n");
                     }
-                    for(i = 0; i <  Operation.extra; i++){
-                        printf("%d\n", merc_porto[i].type);
-                    }
+                    riga_matrice = - 1;
                 }
 
             }

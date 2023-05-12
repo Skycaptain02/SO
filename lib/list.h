@@ -5,17 +5,17 @@
 #include "../src/env_var.h"
 
 
-node * list_create(merci value);
-node * list_insert(node * first, merci value);
-node * list_delete_elem(node * first, int index);
-void list_free(node * first);
-node * list_subtract(node * first);
-node * list_get_first(node * first);
-void list_print(node * first, int pid);
-node * list_delete_zero(node * first, int * matr_global, int riga);
-int list_length(node * first);
-int * list_types(node * first);
-merci * list_to_array(node * first);
-node * array_to_list(merci * first, int length);
+node * list_create(merci);
+node * list_insert(node *, merci);
+node * list_delete_elem(node *, int);
+void list_free(node *);
+node * list_subtract(node *);
+node * list_get_first(node *);
+void list_print(node *, int);
+node * list_delete_zero(node *, int *, int *, int);
+int list_length(node *);
+int * list_types(node *);
+merci * list_to_array(node *);
+node * array_to_list(merci *, int);
 
 #endif

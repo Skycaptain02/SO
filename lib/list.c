@@ -104,16 +104,15 @@ node * list_get_first(node * first){
     return first;
 }
 
-node * list_delete_zero(node * first, int * matr_global, int riga_matrice){
+node * list_delete_zero(node * first, int * matr_global, int * qta_merci_scadute, int riga_matrice){
     node * temp;
     int i = 0, length;
     temp = list_get_first(first);
     length = list_length(temp);
     while(temp->next != NULL){
         if(temp->elem.life == 0){
-            printf("PRIMA: %d, PID: %d\n", matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type],getpid());
             matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
-            printf("DOPO: PID: %d,  %d\n",getpid(), matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type]);
+            * qta_merci_scadute += 1;
             if(i == 0){
                 temp->next->prev = NULL;
             }
@@ -129,6 +128,7 @@ node * list_delete_zero(node * first, int * matr_global, int riga_matrice){
         temp = temp->next;
     }
     if(temp->elem.life == 0){
+        * qta_merci_scadute += 1;
         matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
         if(length == 1){
             return NULL;
@@ -139,7 +139,6 @@ node * list_delete_zero(node * first, int * matr_global, int riga_matrice){
             temp = temp->prev;
         } 
     }
-    /*printf("i = %d, length = %d\n", i, temp->elem.life);*/
     first = list_get_first(temp);
     return first;
 }
@@ -211,6 +210,5 @@ node * array_to_list(merci * arr, int length){
             first = list_insert(first, arr[i]);
         }
     }
-
     return first;
 }
