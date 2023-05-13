@@ -3,7 +3,7 @@
 
 int main(){
     node * first = NULL;
-    merci merce;
+    merci merce, merce2;
     merci * arr;
     int i;
     int * life;
@@ -14,11 +14,12 @@ int main(){
     merce.life = 12;
     merce.weight = 14;
 
+    merce2 = merce;
+
     first = list_insert(first,merce);
 
-    merce.type = 2;
-    merce.life = 10;
-    merce.weight = 12;
+    merce = merce2;
+    merce.weight = 150;
 
     first = list_insert(first,merce);
 

@@ -46,6 +46,7 @@ int main(int argc, char * argv[]){
     struct msgOp Operation;
 
     int * tipi_richieste;
+    int * rem_life;
 
 
     srand(getpid());
@@ -59,6 +60,7 @@ int main(int argc, char * argv[]){
 
     tipi_richieste = malloc(sizeof(int) * SO_MERCI);
     qta_merci_scadute = malloc(sizeof(int));
+    rem_life = malloc(sizeof(int));
 
     /**
      * Creo i primi 4 porti su i 4 lati della mappa
@@ -160,45 +162,59 @@ int main(int argc, char * argv[]){
     msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
 
     while(!flag_end){
-        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, getpid(), 0);               
+        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
-            if(semctl(sem_banchine_id, 0, GETVAL) > 0){
-                sem_reserve(sem_banchine_id,0);
-                Operation.extra = 0;
-                Operation.type = getpid();
-                Operation.operation = 0;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                               
-                printf("Successo [%d] -> MANDO MESSAGGIO\n", getpid());
-                msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, getpid(), 0);       
-                if(msg_bytes >= 0){
-                    switch (Operation.operation)
-                    {
-                        case 1: /*Caso di scarico*/
-                            Operation.operation = 3;
-                            Operation.extra = list_length(merci_richieste_local);
-                            msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                      
-
-                        break;
-                        case 2: /*Caso di carico*/
-                            Operation.operation = 3;
-                            Operation.extra = list_length(merci_offerte_local);
-                            msgsnd(msg_porti_navi_id, &Operation, sizeof(int)*2, 0);
-                            msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, getpid(), 0);
-                            if(Operation.operation == 4 && msg_bytes >= 0){
-                                /*
-                                    funzione da creare nella list.c
-                                    A partire da sx della lista (più vecchio) cerco il primo nodo con type == Operation.exta, mi salvo la vita rimanente e lo elimino
-                                */
-                            }                  
-                        break;
-                    }
+            switch (Operation.operation){
+            /*Caso in cui la nave chiede attracco*/
+            case 0:
+                if(semctl(sem_banchine_id, 0, GETVAL) > 0){
+                    sem_reserve(sem_banchine_id,0);
+                    Operation.extra = 0;
+                    Operation.type = (unsigned int)Operation.pid_nave;
+                    Operation.operation = 0;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
+                    printf("Successo [%d] -> MANDO MESSAGGIO, op = %d\n", getpid(), Operation.operation);
                 }
+                else{
+                    Operation.operation = -1;
+                    Operation.type = (unsigned int)Operation.pid_nave;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);                              
+                }
+                break;
+            
+            case 1:
+                Operation.operation = 3;
+                Operation.extra = list_length(merci_richieste_local);
+                Operation.type = (unsigned int)Operation.pid_nave;
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);   
+                break;
+
+            case 2:
+                merci_offerte_local = list_remove_elem(merci_offerte_local, Operation.extra, rem_life);
+                Operation.operation = 3;
+                printf("pid_nave = %d\n", Operation.pid_nave);
+                Operation.type = (unsigned int)Operation.pid_nave;
+                Operation.extra = * rem_life;
+                printf("REM, life porto %d\n",*rem_life);
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
+                break;
+
+            case 4:
+                printf("Operation: %d\n", Operation.operation);
                 sem_release(sem_banchine_id, 0);
-            }
-            else{
+                Operation.type = (unsigned int)Operation.pid_nave;
                 Operation.operation = -1;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                              
+                Operation.extra = 0;
+                Operation.pid_nave = 0;
+                
+                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) *2  + sizeof(pid_t), 0);
+                
+                break;
+            
+            default:
+                break;
             }
+            
             
         }
         

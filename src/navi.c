@@ -5,7 +5,9 @@
 
 #define CONVERSION_SEC_NSEN 1000000000
 
-void travel(double distanza);
+void travel(double);
+struct msgOp genMessaggio(int, int, int, pid_t);
+int getRow(int *, double *, int );
 
 int flag_end = 0, flag_day = 0;
 
@@ -43,12 +45,14 @@ int main(int argc, char * argv[]){
     struct msgOp Operation, Info_vita;
     int * arr_richieste_global, * arr_offerte_global;
     int i, merce_rand;
+    int flag_end_carico = 1, flag_end_scarico = 1;
     node * stiva;
     int shm_merci_id;
     merci * tipi_merce;
     merci temp;
     
     srand(getpid());
+    printf("PID NAVE: %d\n", getpid());
 
     shm_merci_id = shmget(getppid() + 1, sizeof(tipi_merce) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merce = shmat(shm_merci_id, NULL, 0);
@@ -86,80 +90,77 @@ int main(int argc, char * argv[]){
     
     while(!flag_end){
         travel(distanza);
-        Operation.type = (unsigned int)pos_porti[harbor_des * 3];
-        Operation.operation = 0;
-        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2,0);                                                   
-        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);           
+        Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 0, 0, getpid());
+        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t),0);                                                   
+        msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);           
         printf("HO RICEVUTO DA QUESTO PORTO -> %d\n", (unsigned int)pos_porti[harbor_des * 3]);
         printf("Ho ricevuto op: %d, bytes %d\n", Operation.operation, msg_bytes);
         if(msg_bytes >= 0){
             if(Operation.operation == 0){                                                                           
                 printf("Posso attraccare\n");
-                Operation.operation = (current_weight > 0) ? 1 : 2;                                                  
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2, 0);                                           
-                msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);   
-                if(msg_bytes >= 0 && Operation.operation == 3){ 
-                    printf("CIAOOO\n");                                                   
-                    if(current_weight > 0){
-                        shm_richieste_local_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
-                        arr_richieste_global = shmat(shm_richieste_local_id, NULL, 0);
-                        if(riga_matrice == -1){
-                            i = 0;
-                            while(arr_richieste_global[i*(SO_MERCI+1)] != (unsigned int)pos_porti[harbor_des * 3]){
-                                i++;
-                            }
-                            riga_matrice = i;
-                            i = 0;
-                        }
-                        
-
-                        printf("SCARICO\n");
+                printf("CIAOOO\n");                                                   
+                if(current_weight > 0){
+                    shm_richieste_local_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
+                    arr_richieste_global = shmat(shm_richieste_local_id, NULL, 0);
+                    if(riga_matrice == -1){
+                        riga_matrice = getRow(arr_richieste_global, pos_porti, harbor_des);
                     }
-                    else{
-                        printf("CARICO\n");
-                        shm_offerte_local_id = shmget(getppid() + 6, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
-                        arr_offerte_global = shmat(shm_offerte_local_id, NULL, 0);
-                        if(riga_matrice == -1){
-                            i = 0;
-                            while(arr_offerte_global[i * (SO_MERCI+1)] != (unsigned int)pos_porti[harbor_des * 3]){
-                                i++;
-                            }
-                            riga_matrice = i;
-                            i = 0;
-                        }
-
-                        while(current_weight <= SO_CAPACITY){
-                            merce_rand = rand() % SO_MERCI + 1;
-                            if(arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] != 0){
-                                arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] -= 1;
-                                if(current_weight += tipi_merce[merce_rand - 1].weight <= SO_CAPACITY){
-                                    Info_vita.type = (unsigned int)pos_porti[harbor_des * 3];
-                                    Info_vita.operation = 4;
-                                    Info_vita.extra = tipi_merce[merce_rand - 1].type;
-                                    msgsnd(msg_porti_navi_id, &Info_vita, sizeof(int) * 2, 0);
-                                    msg_bytes = msgrcv(msg_porti_navi_id, &Info_vita, sizeof(int) * 2, (unsigned int)pos_porti[harbor_des * 3], 0);
-                                    if(msg_bytes >= 0 && Info_vita.operation == 4){
-                                        temp = tipi_merce[merce_rand-1];
-                                        temp.life = Info_vita.extra;
-                                        stiva = list_insert(stiva, temp); 
-                                    }
-                                }   
-                                else{
-                                    current_weight -= tipi_merce[merce_rand - 1].weight;
+                    printf("SCARICO\n");
+                }
+                else{
+                    printf("CARICO\n");
+                    shm_offerte_local_id = shmget(getppid() + 7, sizeof(int) * ((SO_MERCI +1 ) * SO_PORTI), 0600);
+                    arr_offerte_global = shmat(shm_offerte_local_id, NULL, 0);
+                    if(riga_matrice == -1){
+                        riga_matrice = getRow(arr_offerte_global, pos_porti, harbor_des);
+                    }
+                    flag_end_carico = 1;
+                    while(flag_end_carico){
+                        merce_rand = (rand() % SO_MERCI) + 1;
+                        if(arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] != 0){
+                            arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] -= 1;
+                            printf("QUESTO E' IL MIO PESO PRIMA -> %d\n", current_weight);
+                            current_weight += tipi_merce[merce_rand - 1].weight;
+                            printf("QUESTO E' LA SOMMA -> %d\n", current_weight);
+                            if(current_weight <= SO_CAPACITY){
+                                printf("Sono nell'if\n");
+                                /*Info_vita = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 2 ,tipi_merce[merce_rand - 1].type, getpid());*/
+                                Operation.type = (unsigned int)pos_porti[harbor_des*3];
+                                Operation.operation = 2;
+                                Operation.extra = tipi_merce[merce_rand-1].type;
+                                Operation.pid_nave = getpid();
+                                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
+                                msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
+                                printf("RICEBUTO STOCAZZO OPERATION %d, msg_bytes: %d \n", Operation.operation, msg_bytes);
+                                if(msg_bytes >= 0 && Operation.operation == 3){
+                                    printf("CIAOSADOASDASD\n");
+                                    temp = tipi_merce[merce_rand - 1];
+                                    printf("REM LIFE NAVE %d\n", Operation.extra);
+                                    temp.life = Operation.extra;
+                                    printf("MERCE INSERITA: TIPO: %d, VITA: %d, PESO: %d\n", temp.type, temp.life, temp.weight);
+                                    /*stiva = list_insert(stiva, temp);*/
                                 }
-                                
-                                printf("Carico merce : %d, peso: %d, peso tot: %d\n",merce_rand, tipi_merce[merce_rand - 1].weight, current_weight);
-                            }
+                                printf("FLAG = %d\n", flag_end_carico);
+                            }   
                             else{
-                                merce_rand = rand() % SO_MERCI + 1;
+                                current_weight -= tipi_merce[merce_rand - 1].weight;
+                                arr_offerte_global[riga_matrice * (SO_MERCI+1) + merce_rand] += 1;
+                                flag_end_carico = 0;
+                                printf("FLAG = %d\n", flag_end_carico);
                             }
                             
+                            /*printf("Carico merce : %d, peso: %d, peso tot: %d\n",merce_rand, tipi_merce[merce_rand - 1].weight, current_weight);*/
+                        }
+                        else{
+                            merce_rand = (rand() % SO_MERCI) + 1;
                         }
                         
                     }
-                    riga_matrice = - 1;
+                    Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 4 , 0, getpid());
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int)*2 + sizeof(pid_t), 0);
+                    msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int)*2 + sizeof(pid_t), getpid(), 0);
                 }
-
+                riga_matrice = - 1;
             }
             else{                                                                                                   
                 printf("Me ne vado\n");
@@ -167,6 +168,8 @@ int main(int argc, char * argv[]){
             
         }
     }
+
+    
 }
 
 
@@ -184,4 +187,21 @@ void travel(double distanza){
     sigaddset (&mask_unblock , SIGUSR1) ;
     sigaddset (&mask_unblock , SIGABRT) ;
     sigprocmask(SIG_UNBLOCK, &mask_unblock, NULL);
+}
+
+struct msgOp genMessaggio(int type, int operation, int extra, pid_t pid_nave){
+    struct msgOp temp;
+    temp.type = type;
+    temp.operation = operation;
+    temp.extra = extra;
+    temp.pid_nave = pid_nave;
+    return temp;
+}
+
+int getRow(int * arr_richieste_global, double * pos_porti, int harbor_des){
+    int i = 0;
+    while(arr_richieste_global[i * (SO_MERCI + 1)] != (unsigned int)pos_porti[harbor_des * 3]){
+        i++;
+    }
+    return i;
 }

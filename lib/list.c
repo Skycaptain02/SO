@@ -19,7 +19,7 @@ node * list_insert(node * first, merci value){
        first = list_create(value);
     }
     else{
-        temp = first;
+        temp = list_get_first(first);
         while(first->next != NULL){
             first = first->next;
         }
@@ -215,9 +215,9 @@ node * array_to_list(merci * arr, int length){
 
 node * list_remove_elem(node * first, int type, int * return_life){
     node * temp;
-
+    printf("Type: %d", type);
     if(first != NULL){
-        temp = first;
+        temp = list_get_first(first);
         while(temp != NULL){
             
             if(temp->elem.type == type){
@@ -227,7 +227,6 @@ node * list_remove_elem(node * first, int type, int * return_life){
                 else{
                     if(temp->prev == NULL){
                         temp->next->prev = NULL;
-                        printf("CIAO\n");
                     }
                     else{
                         if(temp->next == NULL){
@@ -248,5 +247,6 @@ node * list_remove_elem(node * first, int type, int * return_life){
         }
         first = list_get_first(temp);
     }
+    printf("REM_LIFE_LISTA %d\n", *return_life);
     return first;
 }
