@@ -192,15 +192,12 @@ int main(int argc, char * argv[]){
             case 2:
                 merci_offerte_local = list_remove_elem(merci_offerte_local, Operation.extra, rem_life);
                 Operation.operation = 3;
-                printf("pid_nave = %d\n", Operation.pid_nave);
                 Operation.type = (unsigned int)Operation.pid_nave;
                 Operation.extra = * rem_life;
-                printf("REM, life porto %d\n",*rem_life);
                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
                 break;
 
             case 4:
-                printf("Operation: %d\n", Operation.operation);
                 sem_release(sem_banchine_id, 0);
                 Operation.type = (unsigned int)Operation.pid_nave;
                 Operation.operation = -1;

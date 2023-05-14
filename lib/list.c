@@ -215,7 +215,6 @@ node * array_to_list(merci * arr, int length){
 
 node * list_remove_elem(node * first, int type, int * return_life){
     node * temp;
-    printf("Type: %d", type);
     if(first != NULL){
         temp = list_get_first(first);
         while(temp != NULL){
@@ -247,6 +246,5 @@ node * list_remove_elem(node * first, int type, int * return_life){
         }
         first = list_get_first(temp);
     }
-    printf("REM_LIFE_LISTA %d\n", *return_life);
     return first;
 }
