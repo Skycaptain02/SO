@@ -198,14 +198,7 @@ int main(int argc, char * argv[]){
                 break;
 
             case 4:
-                sem_release(sem_banchine_id, 0);
-                Operation.type = (unsigned int)Operation.pid_nave;
-                Operation.operation = -1;
-                Operation.extra = 0;
-                Operation.pid_nave = 0;
-                
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) *2  + sizeof(pid_t), 0);
-                
+                sem_release(sem_banchine_id, 0);                
                 break;
             
             default:

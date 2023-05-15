@@ -28,7 +28,7 @@ int main(int argc, char * argv[]){
 
     int porto_scelto; 
     int flag = 1;
-    char buf_4harbour[50];
+    char argv_buffer[50];
 
     char * args_navi[]  = {"./navi", NULL};
     char * args_porti[] = {"./porti", NULL};
@@ -42,18 +42,16 @@ int main(int argc, char * argv[]){
 
     check_inputs();
 
-    /*bzero(&sa, sizeof(sa));
-    sa.sa_handler = handler_navi_porti;
-    sigaction(SIGUSR1, &sa, NULL);*/
-
     /**
      * SHARED MEMORY
      * 
-     * parent pid + 1: shared memory merci
-     * parent pid + 2: shared memory richieste
-     * parend pid + 3: shared memory offerte
-     * parent pid + 4: shared memory posizione porti
-     * parent pid + 5: shared memory gestione generazione offerte e richieste dai porti
+     * parent pid + 1: lista merci per simulazione
+     * parent pid + 2: matrice indicante quali merci possono essere richieste da ciascun porto
+     * parend pid + 3: matrice indicante quali offerte possono essere richieste da ciascun porto
+     * parent pid + 4: posizione porti
+     * parent pid + 5: gestione generazione offerte e richieste dai porti
+     * parent pid + 6: matrice di tutte le merci richieste da tutti i porti
+     * parent pid + 7: matrice di tutte le merci offerte da tutti i poorti
     */
 
    /**
@@ -63,36 +61,35 @@ int main(int argc, char * argv[]){
     * parent pid + 1 semaforo creazione richieste/offerte
    */
 
-    /* Sezione creazione shared memory per merci */
     shm_merci_id = shmget(getpid() + 1, sizeof(struct merci) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_merci_id, NULL, 0);
-    /*Sezione creazione semaforo per configurazione*/
 
-    /*Sezione creazione shared memory per offerte e richieste*/
     shm_richieste_id = shmget(getpid() + 2, sizeof(int)* ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
     arr_richieste = shmat(shm_richieste_id, NULL, 0);
 
     shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_offerte = shmat(shm_offerte_id, NULL, 0);
-    /*fine Sezione creazione shared memory per offerte e richieste*/
 
-    /*Sezione creazione shared memeory per gestire la posizione dei porti creati*/
     shm_pos_porti_id = shmget(getpid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
     arr_pos_porti = shmat(shm_pos_porti_id, NULL, 0);
-    /*fine Sezione creazione shared memory per posizione porti*/
 
-    /*Sezione creazione shared memory per la gestione della generazione delle richieste e offerte per porti*/
     shm_porti_selezionati_id = shmget(getpid() + 5, sizeof(int), 0600 | IPC_CREAT);
     porti_selezionati = shmat(shm_porti_selezionati_id, NULL, 0);
-    /*fine sezione creazione shared memory per la generazione delle richieste e offerte per i porti*/
 
     shm_richieste_global_id = shmget(getpid() + 6, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_richieste_global = shmat(shm_richieste_global_id, NULL, 0);
 
     shm_offerte_global_id = shmget(getpid() + 7, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
+    /*Fine allocazione delle shared memory*/
 
-    /*Sezione creazione semafori per configurazione*/
+    /**
+     * SEMAFORI
+     * 
+     * parent pid + 0: configuarazione iniziale
+     * parent pid + 1: creazione richieste/offerte
+    */
+
     sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
     sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
 
@@ -101,8 +98,15 @@ int main(int argc, char * argv[]){
     /*Fine Sezione crezione semaforo per configuazione*/
 
     switch(fork()){
+        case - 1:
+            printf("C'è stato un errore nel fork per le merci %s", strerror(errno));
+            exit(- 1);
+        break;
         case 0:
+            sprintf(argv_buffer, "%d", 0);
+            args_merci[1] = argv_buffer;
             execve("../bin/merci", args_merci , NULL);
+            args_merci[1] = " ";
             exit(0);
         break;
         default:
@@ -111,9 +115,6 @@ int main(int argc, char * argv[]){
 
     while(wait(NULL) != -1);
 
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
-    }
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
@@ -123,15 +124,15 @@ int main(int argc, char * argv[]){
         switch (pid_porti[i] = fork())
         {
             case -1:
-                    printf("C'è stato un errore nel fork per i porti: %s", strerror(errno));
-                    exit(-1);
+                printf("C'è stato un errore nel fork per i porti: %s", strerror(errno));
+                exit(-1);
                 break;
             case 0:
-                sprintf(buf_4harbour, "%d", (i+1));
-                args_porti[1] = buf_4harbour;
+                sprintf(argv_buffer, "%d", (i+1));
+                args_porti[1] = argv_buffer;
                 execve("../bin/porti", args_porti, NULL);
-                
                 exit(0);
+                
             default:
             break;
         }
@@ -182,8 +183,8 @@ int main(int argc, char * argv[]){
     for(i = 0; i < SO_NAVI; i++){
         switch (pid_navi[i] = fork()){
             case -1:
-                    printf("C'è *stato un errore nel fork per le navi: %s", strerror(errno));
-                    exit(-1);
+                printf("C'è *stato un errore nel fork per le navi: %s", strerror(errno));
+                exit(-1);
                 break;
             case 0:
                 execve("../bin/navi", args_navi , NULL);
@@ -221,13 +222,7 @@ int main(int argc, char * argv[]){
 
     while(semctl(sem_config_id, 0, GETVAL) != 0);
 
-    printf("INIZIO SIMULAZIONE\n");
-
-
-
-    for(i = 0; i < SO_NAVI; i++){
-        kill(pid_navi[i], SIGUSR1);
-    }
+    printf("[SISTEMA]\t -> \t INIZIO SIMULAZIONE\n");
 
     /**
      * La simulazione effettiva comincia qui
@@ -235,6 +230,10 @@ int main(int argc, char * argv[]){
      * Tali porti verranno scelti a caso, non ripetuti, in modo che non si verichi un possibile merge di segnali
      * I porti che giorno N sono stati scelti riceveranno dal master un segnale SIGUSR2 il quale comunicherà ai porti di creare le proprie merci
     */
+
+    for(i = 0; i < SO_NAVI; i++){
+        kill(pid_navi[i], SIGUSR1);
+    }
 
     i = 0;
     k = 0;
@@ -277,9 +276,11 @@ int main(int argc, char * argv[]){
         for(j = 0; j < * porti_selezionati; j++){
             kill(pid_porti[porti_random[j]], SIGUSR2);
         }
+        /*
         for(j = 0; j < SO_NAVI; j++){
             kill(pid_navi[j], SIGUSR1);
         }
+        */
 
         j = 0;
         k = 0;
@@ -301,7 +302,6 @@ int main(int argc, char * argv[]){
     {
         kill(pid_navi[i], SIGABRT);
     }
-    
 
     while(wait(NULL) != -1);
 
@@ -310,17 +310,21 @@ int main(int argc, char * argv[]){
     shmdt(tipi_merci);
     shmdt(arr_richieste);
     shmdt(arr_offerte);
+    shmdt(arr_richieste_global);
+    shmdt(arr_offerte_global);
 
     shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
     shmctl(shm_pos_porti_id, IPC_RMID, NULL);
     shmctl(shm_merci_id, IPC_RMID, NULL);
     shmctl(shm_richieste_id, IPC_RMID, NULL);
     shmctl(shm_offerte_id, IPC_RMID, NULL);
+    shmctl(shm_richieste_global_id, IPC_RMID, NULL);
+    shmctl(shm_offerte_global_id, IPC_RMID, NULL);
 
     free(pid_navi);
     free(pid_porti);
 
-    printf("Finita Simulazione\n");
+    printf("[SISTEMA] -> SIMULAZIONE TERMINATA\n");
 }
 
 /**
