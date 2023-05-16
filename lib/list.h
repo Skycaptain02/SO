@@ -12,7 +12,7 @@ void list_free(node *);
 node * list_subtract(node *);
 node * list_get_first(node *);
 void list_print(node *);
-node * list_delete_zero(node *, int *, int *, int);
+node * list_delete_zero(node *, int *, int *, int, int);
 int list_length(node *);
 int * list_types(node *);
 merci * list_to_array(node *);

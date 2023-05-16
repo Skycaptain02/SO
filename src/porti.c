@@ -161,9 +161,17 @@ int main(int argc, char * argv[]){
 
     msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
 
+    printf("%d\n", msg_porti_navi_id);
+
     while(!flag_end){
+        printf("ATTENDO MESSAGGIO\n");
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
+        printf("CASO DEFAULT %d\n", Operation.operation);
+        if(msg_bytes < 0){
+            printf("CIAO\n");
+        }
         if(msg_bytes >= 0){
+            printf("RICEVUTO MESSAGGIO PORTO\n");
             switch (Operation.operation){
             /*Caso in cui la nave chiede attracco*/
             case 0:
@@ -173,7 +181,7 @@ int main(int argc, char * argv[]){
                     Operation.type = (unsigned int)Operation.pid_nave;
                     Operation.operation = 0;
                     msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                    printf("Successo [%d] -> MANDO MESSAGGIO, op = %d\n", getpid(), Operation.operation);
+                    printf("Successo [%d] -> MANDO MESSAGGIO, op = %d, pid nave = %d\n", getpid(), Operation.operation, (unsigned int)Operation.pid_nave);
                 }
                 else{
                     Operation.operation = -1;
@@ -183,10 +191,7 @@ int main(int argc, char * argv[]){
                 break;
             
             case 1:
-                Operation.operation = 3;
-                Operation.extra = list_length(merci_richieste_local);
-                Operation.type = (unsigned int)Operation.pid_nave;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);   
+                merci_richieste_local = list_remove_elem(merci_richieste_local, Operation.extra, NULL);
                 break;
 
             case 2:
@@ -212,7 +217,7 @@ int main(int argc, char * argv[]){
     }
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
-        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, qta_merci_scadute, riga_matrice);
+        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, qta_merci_scadute, riga_matrice, 1);
     }
 
     
@@ -314,7 +319,7 @@ void daily_gen(){
 
     if(merci_offerte_local != NULL){
         merci_offerte_local = list_subtract(merci_offerte_local);
-        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, qta_merci_scadute, riga_matrice);
+        merci_offerte_local = list_delete_zero(merci_offerte_local, arr_offerte_global, qta_merci_scadute, riga_matrice, 1);
     }
     perc_richieste = (rand() % 21) + 40;
     merci_richieste_local = request_offer_gen(tipi_merce, merci_richieste_local, porti_selezionati, matr_richieste, perc_richieste, 0);

@@ -104,42 +104,49 @@ node * list_get_first(node * first){
     return first;
 }
 
-node * list_delete_zero(node * first, int * matr_global, int * qta_merci_scadute, int riga_matrice){
+node * list_delete_zero(node * first, int * matr_global, int * qta_merci_scadute, int riga_matrice, int flag_nave){
     node * temp;
     int i = 0, length;
-    temp = list_get_first(first);
-    length = list_length(temp);
-    while(temp->next != NULL){
+    if(first != NULL){
+        temp = list_get_first(first);
+        length = list_length(temp);
+        while(temp->next != NULL){
+            if(temp->elem.life == 0){
+                if(flag_nave){
+                    matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
+                }
+                * qta_merci_scadute += 1;
+                if(i == 0){
+                    temp->next->prev = NULL;
+                }
+                else{
+                    temp->prev->next = temp->next;
+                    temp->next->prev = temp->prev;
+                }
+                temp = temp->next;
+                length--;
+                continue;
+            }
+            i++;
+            temp = temp->next;
+        }
         if(temp->elem.life == 0){
-            matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
             * qta_merci_scadute += 1;
-            if(i == 0){
-                temp->next->prev = NULL;
+            if(flag_nave){
+                matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
+            }
+            if(length == 1){
+                return NULL;
             }
             else{
-                temp->prev->next = temp->next;
-                temp->next->prev = temp->prev;
-            }
-            temp = temp->next;
-            length--;
-            continue;
+                temp->prev->next = NULL;
+                length--;
+                temp = temp->prev;
+            } 
         }
-        i++;
-        temp = temp->next;
+        first = list_get_first(temp);
     }
-    if(temp->elem.life == 0){
-        * qta_merci_scadute += 1;
-        matr_global[(riga_matrice*(SO_MERCI+1))+temp->elem.type] -= 1;
-        if(length == 1){
-            return NULL;
-        }
-        else{
-            temp->prev->next = NULL;
-            length--;
-            temp = temp->prev;
-        } 
-    }
-    first = list_get_first(temp);
+    
     return first;
 }
 
