@@ -18,37 +18,30 @@
 #include <time.h>
 
 
-#define SO_NAVI 1
+#define SO_NAVI 0
 #define SO_PORTI 4
 #define SO_MERCI 6
-#define SO_SIZE 5
-#define SO_MIN_VITA 30
-#define SO_MAX_VITA 50
+#define SO_SIZE 10
+#define SO_MIN_VITA 1
+#define SO_MAX_VITA 5
 #define SO_LATO 500
 #define SO_SPEED 200
-#define SO_CAPACITY 10
+#define SO_CAPACITY 50
 #define SO_BANCHINE 20
-#define SO_FILL 1000
-#define SO_LOADSPEED 20
+#define SO_FILL 10000
+#define SO_LOADSPEED 10
 #define SO_DAYS 30
 #define SO_STORM_DURATION 20
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20
 
-typedef struct merci{
+typedef struct{
     int type;
     int weight;
     int life;
-}merci;
+}Merce;
 
-typedef struct node{
-    merci elem;
-    struct node * prev;
-    struct node * next;
-}node;
-
-struct msgOp
-{
+struct MsgOp{
     long type; /*= pid del porto se coda tra più porti, = 1 se coda per singolo porto*/
     int operation; /*Tipo di op da effettuare: -1 = no generico, 0 = richiesta e attracco, 1 = scarico, 2 = carico, 3 = info vita, 4 = leave*/
     int extra; /*Campo extra per valori possibili ma non sicuri (es key di ICP o lunghezza array)*/

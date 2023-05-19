@@ -14,7 +14,7 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int i, j, k, z, status, errno;
 
-    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id, shm_merci_cosegnate_id;
+    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id;
     int sem_config_id, sem_offerte_richieste_id;
     int sem_porto_1,sem_porto_2,sem_porto_3,sem_porto_4; 
 
@@ -22,7 +22,6 @@ int main(int argc, char * argv[]){
     int * porti_random, * random_index;
     double * arr_pos_porti;
     int * porti_selezionati;
-    int * merci_consegnate;
 
     pid_t * pid_navi, * pid_porti, pid_meteo;
     Merce * tipi_merci;
@@ -53,7 +52,6 @@ int main(int argc, char * argv[]){
      * parent pid + 5: gestione generazione offerte e richieste dai porti
      * parent pid + 6: matrice di tutte le Merce richieste da tutti i porti
      * parent pid + 7: matrice di tutte le Merce offerte da tutti i poorti
-     * parent pid + 8: array che conta il quantitativo di merci consegnate da tutte le navi
     */
 
    /**
@@ -84,13 +82,6 @@ int main(int argc, char * argv[]){
     shm_offerte_global_id = shmget(getpid() + 7, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
 
-    shm_merci_cosegnate_id = shmget(getpid() + 8, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
-    merci_consegnate = shmat(shm_merci_cosegnate_id, NULL, 0);
-    
-    for(i = 0; i < SO_MERCI; i++){
-        merci_consegnate[i] = 0;
-    }
-
     /*Fine allocazione delle shared memory*/
 
     /**
@@ -99,7 +90,6 @@ int main(int argc, char * argv[]){
      * parent pid + 0: configuarazione iniziale
      * parent pid + 1: creazione richieste/offerte
     */
-
 
     sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
     sem_set_val(sem_config_id, 0, (SO_NAVI + SO_PORTI + 1));
@@ -293,22 +283,18 @@ int main(int argc, char * argv[]){
         sleep(1);
         free(porti_random);
     }
-
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Merce %d, consegnata %d volte\n", i+1, merci_consegnate[i]);
-    }
     
     /**
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
     */
     
-    for (i = 0; i < SO_NAVI; i++){
-        kill(pid_navi[i], SIGABRT);
-    }
+    
     for (i = 0; i < SO_PORTI; i++){
         kill(pid_porti[i], SIGABRT);
     }
-    
+    for (i = 0; i < SO_NAVI; i++){
+        kill(pid_navi[i], SIGABRT);
+    }
 
     while(wait(NULL) != -1);
 
@@ -319,7 +305,6 @@ int main(int argc, char * argv[]){
     shmdt(arr_offerte);
     shmdt(arr_richieste_global);
     shmdt(arr_offerte_global);
-    shmdt(merci_consegnate);
 
     shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
     shmctl(shm_pos_porti_id, IPC_RMID, NULL);
@@ -328,7 +313,6 @@ int main(int argc, char * argv[]){
     shmctl(shm_offerte_id, IPC_RMID, NULL);
     shmctl(shm_richieste_global_id, IPC_RMID, NULL);
     shmctl(shm_offerte_global_id, IPC_RMID, NULL);
-    shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);
 
     free(pid_navi);
     free(pid_porti);

@@ -4,19 +4,22 @@
 #include <stddef.h>
 #include "../src/env_var.h"
 
+typedef struct Node{
+    Merce elem;
+    struct Node * next;
+}Node;
 
-node * list_create(merci);
-node * list_insert(node *, merci);
-node * list_delete_elem(node *, int);
-void list_free(node *);
-node * list_subtract(node *);
-node * list_get_first(node *);
-void list_print(node *);
-node * list_delete_zero(node *, int *, int *, int, int);
-int list_length(node *);
-int * list_types(node *);
-merci * list_to_array(node *);
-node * array_to_list(merci *, int);
-node * list_remove_elem(node *, int, int *);
+typedef struct List{
+    Node * top;
+}List;
+
+Node * createNode(Merce elem);
+int listLength(List * list);
+void listCreate(List * list);
+void listInsert(List * list, Merce elem);
+void listPrint(List * list);
+void listSubtract(List * list, int *);
+void listRemoveToLeft(List * list, int *, int);
+void freeList(List * list);
 
 #endif
