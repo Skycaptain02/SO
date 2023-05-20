@@ -56,13 +56,6 @@ int main(int argc, char * argv[]){
      * parent pid + 8: array che conta il quantitativo di merci consegnate da tutte le navi
     */
 
-   /**
-    * SEMAFORI
-    * 
-    * parent pid + 0 semaforo configuarazione
-    * parent pid + 1 semaforo creazione richieste/offerte
-   */
-
     shm_merci_id = shmget(getpid() + 1, sizeof(Merce) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_merci_id, NULL, 0);
 

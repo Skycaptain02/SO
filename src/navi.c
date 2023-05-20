@@ -18,7 +18,6 @@ int * arr_richieste_global, * arr_offerte_global;
 int * merci_scadute, * merci_scaricate;
 
 void handler_start(int signal){
-    printf("RICEVUTO SEGNALE -> %d\n", signal);
     switch(signal){
         case SIGABRT:
             flag_end = 1;
@@ -112,7 +111,6 @@ int main(int argc, char * argv[]){
         msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
-            printf("Ho ricevuto messaggio per attraccare\n");
             if(Operation.operation == 0){
                 if(current_weight > 0){           
                     riga_matrice = getRow(arr_richieste_global, pos_porti, harbor_des);
@@ -240,16 +238,11 @@ void travel(double distanza){
         printf("TEMPO RIMASTO SEC -> %ld\n", rem.tv_sec);
         printf("TEMPO RIMASTO N_SEC -> %ld\n", rem.tv_nsec);
     }
-    printf("prima\n");
-    listPrint(&stiva);
     if(stiva.top != NULL){
         for(i = 0; i < modulo; i++){
             listSubtract(&stiva, merci_scadute);
         }
     }
-    printf("dopo\n");
-    listPrint(&stiva);
-    printf("Merce scadute %d\n", *merci_scadute);
 }
 
 struct MsgOp genMessaggio(unsigned int type, int operation, int extra, pid_t pid_nave){
@@ -271,12 +264,9 @@ int getRow(int * arr_richieste_global, double * pos_porti, int harbor_des){
 
 double calcoloDistanza(int harbor_des, double * pos_porti, int ship_pos_x, int ship_pos_y){
     double dist_parz_x, dist_parz_y, distanza;
-
     dist_parz_x = pow((pos_porti[harbor_des * 3 + 1] - ship_pos_x), 2);
     dist_parz_y = pow((pos_porti[harbor_des * 3 + 2] - ship_pos_y), 2);
     distanza = sqrt(dist_parz_x+dist_parz_y);
-
-    printf("distanza tra nave e porto -> %f\n", distanza);
     return distanza;
 }
 
@@ -295,11 +285,11 @@ int harborOperations(int quantity){
     req.tv_sec = (time_t)(modulo);
     req.tv_nsec = (long)(nsec);
 
-    printf("[PID %d] DEVO ASPETTARE -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] DEVO ASPETTARE -> %ld N_SECONDI \n", getpid(), req.tv_nsec);
+    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
+    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
 
     if(nanosleep(&req, &rem) == - 1){
-        printf("ERRORE NANOSLEEPPPPPPPPPPPPPPPPPPP HARBOROP\n");
+        printf("ERRORE NANOSLEEPPPPPPPPPPPPPPPPPPP HARBORO\n");
     }
     if(rem.tv_nsec != 0 || rem.tv_sec != 0){
         printf("SOSPESOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO HARBOR OP\n");

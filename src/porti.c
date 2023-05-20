@@ -174,9 +174,7 @@ int main(int argc, char * argv[]){
     while(!flag_end){
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
-            printf("RICEVUTO MESSAGGIO PORTO\n");
             switch (Operation.operation){
-            /*Caso in cui la nave chiede attracco*/
             case 0:
                 if(semctl(sem_banchine_id, 0, GETVAL) > 0){
                     sem_reserve(sem_banchine_id,0);
@@ -184,7 +182,7 @@ int main(int argc, char * argv[]){
                     Operation.type = (unsigned int)Operation.pid_nave;
                     Operation.operation = 0;
                     msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                    printf("Successo [%d] -> MANDO MESSAGGIO, op = %d, pid nave = %d\n", getpid(), Operation.operation, (unsigned int)Operation.pid_nave);
+                    /*printf("Successo [%d] -> MANDO MESSAGGIO, op = %d, pid nave = %d\n", getpid(), Operation.operation, (unsigned int)Operation.pid_nave);*/
                 }
                 else{
                     Operation.operation = -1;
@@ -194,7 +192,6 @@ int main(int argc, char * argv[]){
                 break;
             
             case 1:
-                printf("RIMUOVO ELEM %d", Operation.extra);
                 listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
                 Operation.type = (unsigned int)Operation.pid_nave;
                 Operation.extra = 0;
@@ -207,7 +204,6 @@ int main(int argc, char * argv[]){
                 Operation.type = (unsigned int)Operation.pid_nave;
                 listRemoveToLeft(&listaOfferte, rem_life, Operation.extra);
                 Operation.extra = * rem_life;
-                printf("rem life: %d\n", * rem_life);
                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
                 break;
 
@@ -274,11 +270,12 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                     flag_ctl = 0;  
                 }
                 else{
-                    /*listInsert(&lista, tipi_merce[0]);*/
                     if(flag){
-                        arr_offerte_global[(riga_matrice * (SO_MERCI+1))+1] += 1;
+                        arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + 1] += 1;
+                        listInsert(&listaOfferte, tipi_merce[0]);
                     }else{
-                        arr_richieste_global[(riga_matrice * (SO_MERCI+1))+1] += 1;
+                        arr_richieste_global[(riga_matrice * (SO_MERCI+1)) + 1] += 1;
+                        listInsert(&listaRichieste, tipi_merce[0]);
                     }
                 }
             }
@@ -288,47 +285,33 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
         }   
     }
     else{  
-        if(flag){ /*OFFERTE*/
-            while(fill <= req_fill){
-                flag_ctl = 1;
-                while(flag_ctl){
-                    if(matrice[riga_matrice * (SO_MERCI + 1) + (id_merce)] == 1){
-                        flag_ctl = 0;
-                        if(flag){
-                        }
-                    }
-                    else{
-                        id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
-                        flag_ctl = 1;
+        while(fill <= req_fill){
+            flag_ctl = 1;
+            while(flag_ctl){
+                if(matrice[riga_matrice * (SO_MERCI + 1) + (id_merce)] == 1){
+                    flag_ctl = 0;
+                    if(flag){
                     }
                 }
-                fill += tipi_merce[id_merce-1].weight;
-                if(fill <= req_fill){
+                else{
+                    id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
+                    flag_ctl = 1;
+                }
+            }
+            fill += tipi_merce[id_merce-1].weight;
+            if(fill <= req_fill){
+                if(flag){   /*OFFERTE*/
                     arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaOfferte, tipi_merce[id_merce - 1]);
                 }
-                id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
-            }
-        }else{ /*Richieste*/
-            while(fill <= (req_fill)){
-                flag_ctl = 1;
-                while(flag_ctl){
-                    if(matrice[riga_matrice * (SO_MERCI + 1) + (id_merce)] == 1){
-                        flag_ctl = 0;
-                    }
-                    else{
-                        id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
-                        flag_ctl = 1;
-                    }
-                }
-                fill += tipi_merce[id_merce-1].weight;
-                if(fill <= req_fill){
+                else{       /*RICHIESTE*/
                     arr_richieste_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaRichieste, tipi_merce[id_merce - 1]);
                 }
-                id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
+                
             }
-        }
+            id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
+        } 
     }
 }
 
@@ -341,9 +324,9 @@ void daily_gen(){
     perc_richieste = (rand() % 21) + 40;
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
-    printf("OFFERTE %d\n", getpid());
+    /*printf("OFFERTE %d\n", getpid());
     listPrint(&listaOfferte);
-    /*printf("RICHIESTE %d\n", getpid());
+    printf("RICHIESTE %d\n", getpid());
     listPrint(&listaRichieste);*/
     
 }
