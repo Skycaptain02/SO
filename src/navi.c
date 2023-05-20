@@ -123,7 +123,7 @@ int main(int argc, char * argv[]){
                             msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t));
                             msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
                             if(msg_bytes >= 0){
-                                /*printf("MERCE SCARICATA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp_stiva.top->elem.type, temp_stiva.top->elem.life, temp_stiva.top->elem.weight);*/
+                                printf("MERCE SCARICATA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp_stiva.top->elem.type, temp_stiva.top->elem.life, temp_stiva.top->elem.weight);
                             }
                             current_weight -= temp_stiva.top->elem.weight;
                             listRemoveToLeft(&stiva, NULL, temp_stiva.top->elem.type);
@@ -167,7 +167,7 @@ int main(int argc, char * argv[]){
                                 if(msg_bytes >= 0 && Operation.operation == 3){
                                     temp = tipi_merce[id_merce - 1];
                                     temp.life = Operation.extra;
-                                    /*printf("MERCE INSERITA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp.type, temp.life, temp.weight);*/
+                                    printf("MERCE INSERITA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp.type, temp.life, temp.weight);
                                     listInsert(&stiva, temp);
                                     merci_caricate += 1;
                                 }
@@ -207,6 +207,8 @@ int main(int argc, char * argv[]){
         }
         
     }
+
+    printf("HO FINITO PORTO\n");
 }
 
 void travel(double distanza){
@@ -237,6 +239,7 @@ void travel(double distanza){
         printf("SOSPESOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
         printf("TEMPO RIMASTO SEC -> %ld\n", rem.tv_sec);
         printf("TEMPO RIMASTO N_SEC -> %ld\n", rem.tv_nsec);
+        flag_end = 1;
     }
     if(stiva.top != NULL){
         for(i = 0; i < modulo; i++){
@@ -296,6 +299,7 @@ int harborOperations(int quantity){
         printf("TEMPO RIMASTO SEC HARBOR OP -> %ld\n", rem.tv_sec);
         printf("TEMPO RIMASTO N_SEC HARBOR OP -> %ld\n", rem.tv_nsec);
         exit = 1;
+        flag_end = 1;
     }
     return exit;
 }

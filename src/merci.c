@@ -14,7 +14,7 @@ int main(int argc, char * argv[]){
         tipi_merci[i].life = ((rand() % SO_MAX_VITA) + SO_MIN_VITA);
     }
 
-    if(1){
+    if(PRINT_MERCI){
         for(i = 0; i < SO_MERCI; i++){
             printf("Tipo -> %d, Peso -> %d, Vita -> %d\n", tipi_merci[i].type, tipi_merci[i].weight, tipi_merci[i].life);
         }

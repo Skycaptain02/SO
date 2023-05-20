@@ -48,6 +48,7 @@ int main(int argc, char * argv[]){
 
     int * tipi_richieste;
     int * rem_life;
+    int numBanchine;
 
 
     srand(getpid());
@@ -123,6 +124,8 @@ int main(int argc, char * argv[]){
         }
     }
 
+    numBanchine = (rand() % SO_BANCHINE) + 1;
+
     /**
      * Allocuazione delle shared memory
     */
@@ -146,7 +149,8 @@ int main(int argc, char * argv[]){
     arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
 
     sem_banchine_id = semget(getpid(), 1, 0600 | IPC_CREAT);
-    sem_set_val(sem_banchine_id, 0, (SO_BANCHINE));
+    semctl(sem_banchine_id, 0, SETVAL , numBanchine);
+    /*sem_set_val(sem_banchine_id, 0, (numBanchine));*/
 
     i = 0;
     while(arr_richieste_global[i*(SO_MERCI+1)] != getpid()){
@@ -154,13 +158,6 @@ int main(int argc, char * argv[]){
     }
     riga_matrice = i;
     i = 0;
-
-    /*
-    printf("PORTI\n");
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Type -> %d, Life -> %d, Peso -> %d\n", tipi_merce[i].type, tipi_merce[i].life, tipi_merce[i].weight);
-    }
-    */
 
     /**
      * Finita la configuarazione iniziale, abbasso il semaforo per comunicare al master che il porto e' pronto a ricevere il segnale SIGUSR1 per iniziare la generazione delle Merce
@@ -214,13 +211,8 @@ int main(int argc, char * argv[]){
                 Operation.operation = - 1;
                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
                 break;
-            
-            default:
-                break;
             }
         }
-        
-        
     }
     
     /**
@@ -254,12 +246,16 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
     int id_merce = 1;
     int i, flag_ctl = 1, exit = 0;
     double req_fill;
+    
+    /**
+     * Dividiamo il fill giornaliero per il numero di porti selezionati per quel giorno (min 4), e suddividiamo il tutto tramite percentuale
+     * in fill per l'offerta e fill per la richiesta (Es 40% di fill per richieste e 60% di fill per le offerte)
+    */
+   
     req_fill = (((double)SO_FILL / (double)SO_DAYS) / (double)* porti_selezionati) * ((double)percentuale / 100); 
     
 
-    /**
-     * Caso specifico in cui SO_MERCI e' impostato a 1
-    */
+    /*Caso specifico in cui SO_MERCI e' impostato a 1*/
     if (SO_MERCI == 1){    
         flag_ctl = 1;
         while(flag_ctl){
@@ -300,11 +296,11 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
             }
             fill += tipi_merce[id_merce-1].weight;
             if(fill <= req_fill){
-                if(flag){   /*OFFERTE*/
+                if(flag){/*OFFERTE*/
                     arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaOfferte, tipi_merce[id_merce - 1]);
                 }
-                else{       /*RICHIESTE*/
+                else{/*RICHIESTE*/
                     arr_richieste_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaRichieste, tipi_merce[id_merce - 1]);
                 }
@@ -320,6 +316,7 @@ void daily_gen(){
     int perc_richieste;
     if(listaOfferte.top != NULL){
         listSubtract(&listaOfferte, qta_merci_scadute);
+        /*listSubtract(&listaRichieste, qta_merci_scadute);*/
     }
     perc_richieste = (rand() % 21) + 40;
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
