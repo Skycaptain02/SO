@@ -37,13 +37,20 @@ void listPrint(List * list){
     }
 }
 
-void listSubtract(List * list, int * merce_scaduta){
+void listSubtract(List * list, int * merce_scaduta, int * statusMerci, int caller){
     Node * head = list->top;
     Node * prev = NULL;
     while(head != NULL){
         head->elem.life = head->elem.life - 1;
         if(head->elem.life <= 0){
             * merce_scaduta = * merce_scaduta + 1;
+            if(caller){ /*Porto*/
+                statusMerci[((head->elem.type - 1) * 5) + 3] += 1;
+                statusMerci[((head->elem.type - 1) * 5)] -= 1;
+            }else{ /*Nave*/
+                statusMerci[((head->elem.type - 1) * 5) + 4] += 1;
+                statusMerci[((head->elem.type - 1) * 5) + 1] -= 1;
+            }
             if(prev == NULL){
                 list->top = head->next;
             }

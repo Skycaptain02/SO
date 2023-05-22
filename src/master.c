@@ -4,13 +4,15 @@
 void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offerte, int print);
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int num_merci, int print);
 void check_inputs();
+void dailyPrint(int *, int *, int);
 
 int main(int argc, char * argv[]){
 
     int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id, shm_merci_cosegnate_id;
+    int shm_statusNavi_id, shm_statusMerci_id;
     int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global;
     double * arr_pos_porti;
-    int * porti_selezionati, * merci_consegnate;
+    int * porti_selezionati, * merci_consegnate, * statusNavi, * statusMerci;
     Merce * tipi_merci;
 
     sigset_t mask_block;
@@ -34,6 +36,8 @@ int main(int argc, char * argv[]){
     char * args_porti[] = {"porti.c", NULL};
     char * args_meteo[] = {"meteo.c", NULL};
     char * args_merci[] = {"merci.c", NULL};
+
+    struct timespec req, rem;
     
     pid_navi = malloc(sizeof(pid_navi) * SO_NAVI);
     pid_porti = malloc(sizeof(pid_porti) * SO_PORTI);
@@ -57,12 +61,14 @@ int main(int argc, char * argv[]){
      * parent pid + 6: matrice di tutte le Merce richieste da tutti i porti
      * parent pid + 7: matrice di tutte le Merce offerte da tutti i poorti
      * parent pid + 8: array che conta il quantitativo di merci consegnate da tutte le navi
+     * parent pid + 9: array che visualizza lo status delle navi nel corso della simulazione
+     * parent pid + 10: array che salva tutti gli status delle merci in corso della simulazione
     */
 
     shm_merci_id = shmget(getpid() + 1, sizeof(Merce) * SO_MERCI, 0600 | IPC_CREAT);
     tipi_merci = shmat(shm_merci_id, NULL, 0);
     
-    shm_richieste_id = shmget(getpid() + 2, sizeof(int)* ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
+    shm_richieste_id = shmget(getpid() + 2, sizeof(int) * ((SO_MERCI + 1)*SO_PORTI), 0600 | IPC_CREAT);
     arr_richieste = shmat(shm_richieste_id, NULL, 0);
 
     shm_offerte_id = shmget(getpid() + 3, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
@@ -82,6 +88,12 @@ int main(int argc, char * argv[]){
 
     shm_merci_cosegnate_id = shmget(getpid() + 8, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
     merci_consegnate = shmat(shm_merci_cosegnate_id, NULL, 0);
+
+    shm_statusNavi_id = shmget(getpid() + 9, sizeof(int) * SO_NAVI * 4, 0600 | IPC_CREAT);
+    statusNavi = shmat(shm_statusNavi_id, NULL, 0);
+
+    shm_statusMerci_id = shmget(getpid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
+    statusMerci = shmat(shm_statusMerci_id, NULL, 0);
     /*Fine allocazione delle shared memory*/
 
     /**
@@ -116,6 +128,10 @@ int main(int argc, char * argv[]){
     }
 
     while(wait(NULL) != - 1);
+
+    for(i = 0; i < SO_MERCI * 5; i++){
+        statusMerci[i] = 0;
+    }
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
@@ -195,6 +211,13 @@ int main(int argc, char * argv[]){
         }
     }
 
+    for(i = 0; i < SO_NAVI; i++){
+        statusNavi[i * 4] = (unsigned int)pid_navi[i];
+        statusNavi[(i * 4) + 1] = 0;
+        statusNavi[(i * 4) + 2] = 0;
+        statusNavi[(i * 4) + 3] = 0;
+    }
+
     printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
 
     /**
@@ -267,7 +290,6 @@ int main(int argc, char * argv[]){
                 }
             }
         }
-        printf("GIORNO -> [%d]\n", (i+1));
         i++;
         for(j = 0; j < * porti_selezionati; j++){
             kill(pid_porti[porti_random[j]], SIGUSR2);
@@ -276,7 +298,10 @@ int main(int argc, char * argv[]){
         j = 0;
         k = 0;
 
-        sleep(1);
+        req.tv_sec = 1;
+        req.tv_nsec = 0;
+        nanosleep(&req, &rem);
+        dailyPrint(statusNavi, statusMerci, i);
         free(porti_random);
     }
 
@@ -297,14 +322,8 @@ int main(int argc, char * argv[]){
         kill(pid_porti[i], SIGABRT);
     }
 
-    
-    
-
     while(wait(NULL) != -1);
     
-    
-    
-
     shmdt(porti_selezionati);
     shmdt(arr_pos_porti);
     shmdt(tipi_merci);
@@ -313,6 +332,8 @@ int main(int argc, char * argv[]){
     shmdt(arr_richieste_global);
     shmdt(arr_offerte_global);
     shmdt(merci_consegnate);
+    shmdt(statusNavi);
+    shmdt(statusMerci);
 
     shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
     shmctl(shm_pos_porti_id, IPC_RMID, NULL);
@@ -322,6 +343,8 @@ int main(int argc, char * argv[]){
     shmctl(shm_richieste_global_id, IPC_RMID, NULL);
     shmctl(shm_offerte_global_id, IPC_RMID, NULL);
     shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);
+    shmctl(shm_statusNavi_id, IPC_RMID, NULL);
+    shmctl(shm_statusMerci_id, IPC_RMID, NULL);
 
     free(pid_navi);
     free(pid_porti);
@@ -552,5 +575,25 @@ void check_inputs(){
     else if(SO_DAYS <= 0){
         printf("[SISTEMA]\t -> \t ERRORE: SO_DAYS DEVE ESSERE UN NUMERO > 0\n");
         exit(- 1);
+    }
+}
+
+void dailyPrint(int * status, int * statusMerci, int giorno){
+    int carico = 0;
+    int noCarico = 0;
+    int operandoPorto = 0;
+    int i;
+
+    for(i = 0; i < SO_NAVI; i++){
+        noCarico += status[(i * 4) + 1];
+        carico += status[(i * 4) + 2];
+        operandoPorto += status[(i * 4) + 3];
+    }
+    printf("GIORNO\t->\t[%d]\n", giorno);
+    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
+    printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
+    printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n", operandoPorto);
+    for(i = 0; i < SO_MERCI; i++){
+        printf("Status merce->\t%d, presente in porto->\t%d, presente in nave->\t%d, consegnata in porto->\t%d, scaduta in porto->\t%d, scaduta in nave->\t%d\n", (i + 1), statusMerci[(i*5)], statusMerci[(i*5)+1], statusMerci[(i*5)+2], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
     }
 }

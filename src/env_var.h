@@ -18,12 +18,12 @@
 #include <time.h>
 
 
-#define SO_NAVI 25
+#define SO_NAVI 1
 #define SO_PORTI 4
 #define SO_MERCI 6
 #define SO_SIZE 10
-#define SO_MIN_VITA 30
-#define SO_MAX_VITA 50
+#define SO_MIN_VITA 1
+#define SO_MAX_VITA 10
 #define SO_LATO 500
 #define SO_SPEED 200
 #define SO_CAPACITY 50
