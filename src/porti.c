@@ -2,12 +2,11 @@
 #include "../lib/ipc.h"
 #include "../lib/list.h"
 
-void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matrice, int percentuale, int flag);
+void request_offer_gen(Merce *, int *, int * , int, int);
 void dailyGen();
 void dailyPrint();
 
 List listaRichieste, listaOfferte;
-
 Merce * tipi_merce;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
@@ -15,8 +14,6 @@ int riga_matrice, merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
 int * qta_merci_scadute, * statusMerci;
 
 int flag_end = 0;
-
-
 
 void handler_start(int signal){
     switch(signal){
@@ -151,10 +148,20 @@ int main(int argc, char * argv[]){
 
     shm_statusMerci_id = shmget(getppid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
+    /*Fine allocazione shared memory*/
+
+    /**
+     * Allocazione semafori
+    */
 
     sem_banchine_id = semget(getpid(), 1, 0600 | IPC_CREAT);
     semctl(sem_banchine_id, 0, SETVAL , numBanchine);
-    /*sem_set_val(sem_banchine_id, 0, (numBanchine));*/
+
+    sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
+    /*Fine allocazione semafori*/
+
+    /*Allocazione cosa di messaggi*/
+    msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
 
     i = 0;
     while(arr_richieste_global[i * (SO_MERCI + 1)] != getpid()){
@@ -167,13 +174,9 @@ int main(int argc, char * argv[]){
      * Finita la configuarazione iniziale, abbasso il semaforo per comunicare al master che il porto e' pronto a ricevere il segnale SIGUSR1 per iniziare la generazione delle Merce
     */
 
-    sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
 
-    msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
-    
     while(!flag_end){
-        statusMerci[0] += 1;
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
             switch (Operation.operation){
@@ -195,7 +198,7 @@ int main(int argc, char * argv[]){
             
             case 1:
                 listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
-                statusMerci[((Operation.extra - 1) * 5) + 2] += 1;     /*Inserisco al porto*/
+                statusMerci[((Operation.extra - 1) * 5) + 2] += 1; /*Inserisco al porto*/
                 statusMerci[((Operation.extra - 1) * 5) + 1] -= 1; /*Tolgo su nave*/
                 Operation.type = (unsigned int)Operation.pid_nave;
                 Operation.extra = 0;
@@ -213,7 +216,6 @@ int main(int argc, char * argv[]){
                 Operation.extra = * rem_life;
                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
                 merci_spedite += 1;
-                
                 break;
 
             case 4:
@@ -343,5 +345,5 @@ void dailyGen(){
 }
 
 void dailyPrint(){
-    printf("[PORTO -> %d] Merci: presenti->\t%d, ricevute->\t%d, spedite->\t%d, banchine->\tlibere %d su %d totali\n", getpid(), listLength(&listaOfferte), merci_ricevute, merci_spedite, semctl(sem_banchine_id, 0, GETVAL),  numBanchine);
+    printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", getpid(), listLength(&listaOfferte), merci_ricevute, merci_spedite, semctl(sem_banchine_id, 0, GETVAL),  numBanchine);
 }

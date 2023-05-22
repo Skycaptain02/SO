@@ -18,19 +18,19 @@
 #include <time.h>
 
 
-#define SO_NAVI 1
-#define SO_PORTI 4
-#define SO_MERCI 6
-#define SO_SIZE 10
-#define SO_MIN_VITA 1
+#define SO_NAVI 1000
+#define SO_PORTI 100
+#define SO_MERCI 10
+#define SO_SIZE 1
+#define SO_MIN_VITA 3
 #define SO_MAX_VITA 10
-#define SO_LATO 500
-#define SO_SPEED 200
-#define SO_CAPACITY 50
-#define SO_BANCHINE 20
-#define SO_FILL 100000
+#define SO_LATO 1000
+#define SO_SPEED 500
+#define SO_CAPACITY 10
+#define SO_BANCHINE 2
+#define SO_FILL 500000
 #define SO_LOADSPEED 10
-#define SO_DAYS 20
+#define SO_DAYS 10
 #define SO_STORM_DURATION 20
 #define SO_SWELL_DURATION 20
 #define SO_MAELESTROM 20

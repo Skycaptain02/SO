@@ -10,18 +10,20 @@ struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
 int getRow(int *, double *, int );
 double calcoloDistanza(int, double *, int, int);
 int harborOperations(int *, int);
+void funcEnd();
 
 
 List stiva;
 int flag_end = 0, flag_day = 0, current_weight = 0;
-int * arr_richieste_global, * arr_offerte_global;
-int * merci_scadute, * merci_scaricate;
-int * statusMerci;
+int * arr_richieste_global, * arr_offerte_global, * merci_consegnate, * statusNavi, * statusMerci, * merci_scadute;
+Merce * tipi_merce;
+double * pos_porti;
 
 void handler_start(int signal){
     switch(signal){
         case SIGABRT:
             flag_end = 1;
+            funcEnd();
         break;
         default:
             printf("ERROR\n");
@@ -37,7 +39,6 @@ int main(int argc, char * argv[]){
     double ship_pos_x, dist_parz_x;
     double ship_pos_y, dist_parz_y;
     double distanza;
-    double * pos_porti;
 
     int harbor_des;
     int sem_config_id, sem_offerte_richieste_id, shm_merci_id;
@@ -48,15 +49,13 @@ int main(int argc, char * argv[]){
     int harbor_des_old;
 
     int shm_pos_porti_id, shm_richieste_local_id, shm_offerte_local_id, shm_merci_consegnate_id, shm_statusNavi_id, shm_statusMerci_id;
-    int * richieste_local, * offerte_local, * merci_consegnate, * statusNavi;
+    int * richieste_local, * offerte_local;
     struct sigaction sa;
     struct MsgOp Operation, Info_vita;
     int i, merce_rand, id_merce = 1;
     int flag_end_carico = 1, flag_end_scarico = 1, flag_ctrl = 1;
     int merci_scaricate = 0, merci_caricate = 0;
     int exit = 0;
-    
-    Merce * tipi_merce;
     Merce temp;
     List temp_stiva;
 
@@ -104,13 +103,21 @@ int main(int argc, char * argv[]){
     shm_statusMerci_id = shmget(getppid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
 
+    i = 0;
+    while(statusNavi[i * 4] != getpid()){
+        i++;
+    }    
+    statusNavi[(i * 4) + 1] = 1;
+    statusNavi[(i * 4) + 2] = 0;
+    statusNavi[(i * 4) + 3] = 0;
+    i = 0;
+
     distanza = calcoloDistanza(harbor_des, pos_porti, ship_pos_x, ship_pos_y);
     travel(statusNavi, distanza);
     ship_pos_x = pos_porti[harbor_des * 3 + 1];
     ship_pos_y = pos_porti[harbor_des * 3 + 2];
 
     while(!flag_end){
-        
         Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 0, 0, getpid());
         msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
@@ -147,16 +154,26 @@ int main(int argc, char * argv[]){
                     flag_end_carico = 1;
                     while(flag_end_carico){
                         flag_ctrl = 1;
-                        for(i = id_merce; current_weight <= SO_CAPACITY && flag_ctrl == 1; i++){
-                            if(i >= SO_MERCI+1){
+                        if(SO_MERCI != 1){
+                            for(i = id_merce; current_weight <= SO_CAPACITY && flag_ctrl == 1; i++){
+                                if(i >= SO_MERCI+1){
+                                    id_merce = 1;
+                                    i = 1;
+                                }
+                                if(arr_offerte_global[riga_matrice * (SO_MERCI + 1) + i] != 0){
+                                    flag_ctrl = 0;
+                                    id_merce = i;
+                                }
+                                
+                            }
+                        }else{
+                            if(arr_offerte_global[riga_matrice * (SO_MERCI + 1) + 1] != 0){
                                 id_merce = 1;
-                                i = 1;
-                            }
-                            if(arr_offerte_global[riga_matrice * (SO_MERCI + 1) + i] != 0){
                                 flag_ctrl = 0;
-                                id_merce = i;
                             }
-                            
+                            else{
+                                flag_ctrl = 1;
+                            }
                         }
                         if(!flag_ctrl){
                             arr_offerte_global[riga_matrice * (SO_MERCI + 1) + id_merce] -= 1;
@@ -187,7 +204,8 @@ int main(int argc, char * argv[]){
                         }
                         id_merce += 1;
                     }
-                    exit = harborOperations(statusNavi ,merci_caricate);
+                    exit = harborOperations(statusNavi 
+                    ,merci_caricate);
                     merci_caricate = 0;
                 }
                 
@@ -209,16 +227,7 @@ int main(int argc, char * argv[]){
             ship_pos_x = pos_porti[harbor_des * 3 + 1];
             ship_pos_y = pos_porti[harbor_des * 3 + 2];
         }
-        
     }
-
-    shmdt(tipi_merce);
-    shmdt(pos_porti);
-    shmdt(merci_consegnate);
-    shmdt(arr_richieste_global);
-    shmdt(arr_offerte_global);
-    shmdt(statusNavi);
-    shmdt(statusMerci);
 }
 
 void travel(int * status, double distanza){
@@ -246,7 +255,7 @@ void travel(int * status, double distanza){
     while(status[i * 4] != getpid()){
         i++;
     }    
-    if(stiva.top == NULL){
+    if(current_weight == 0){
         status[(i * 4) + 1] = 1;
         status[(i * 4) + 2] = 0;
         status[(i * 4) + 3] = 0;
@@ -282,6 +291,10 @@ int harborOperations(int * status, int quantity){
     double nsec, waitTime;
     rem.tv_nsec = 0;
     rem.tv_sec = 0;
+
+    status[(i * 4) + 1] = 0;
+    status[(i * 4) + 2] = 0;
+    status[(i * 4) + 3] = 1;
     
     waitTime = (double)quantity/(double)SO_LOADSPEED;
     modulo = (int)waitTime;
@@ -293,9 +306,7 @@ int harborOperations(int * status, int quantity){
         i++;
     }
     
-    status[(i * 4) + 1] = 0;
-    status[(i * 4) + 2] = 0;
-    status[(i * 4) + 3] = 1;
+    
 
     /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
     printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
@@ -336,4 +347,17 @@ double calcoloDistanza(int harbor_des, double * pos_porti, int ship_pos_x, int s
     dist_parz_y = pow((pos_porti[harbor_des * 3 + 2] - ship_pos_y), 2);
     distanza = sqrt(dist_parz_x+dist_parz_y);
     return distanza;
+}
+
+void funcEnd(){
+
+    shmdt(tipi_merce);
+    shmdt(pos_porti);
+    shmdt(merci_consegnate);
+    shmdt(arr_richieste_global);
+    shmdt(arr_offerte_global);
+    shmdt(statusNavi);
+    shmdt(statusMerci);
+    
+    exit(0);
 }
