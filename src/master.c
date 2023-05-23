@@ -5,6 +5,7 @@ void gen_richiesta_offerta(int * pid_porti, int * arr_richieste, int * arr_offer
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pid_porti, int num_merci, int print);
 void check_inputs();
 void dailyPrint(int *, int *, int);
+void finalReport(int *, int *, int *, int *, int *);
 
 int main(int argc, char * argv[]){
 
@@ -343,6 +344,8 @@ int main(int argc, char * argv[]){
         printf("[SISTEMA] -> TUTTE LE RICHIESTE SODDISFATTE OPPURE L'OFFERTA E' PARI A 0\n");
     }
 
+    
+
     for (i = 0; i < SO_NAVI; i++){
         kill(pid_navi[i], SIGABRT);
     }
@@ -351,6 +354,8 @@ int main(int argc, char * argv[]){
     }
 
     while(wait(NULL) != -1);
+    
+    finalReport(statusNavi, statusMerci, statusMerciTot, maxOfferte, maxRichieste);
     
     shmdt(porti_selezionati);
     shmdt(arr_pos_porti);
@@ -362,6 +367,7 @@ int main(int argc, char * argv[]){
     /*shmdt(merci_consegnate);*/
     shmdt(statusNavi);
     shmdt(statusMerci);
+    shmdt(statusMerciTot);
 
     shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
     shmctl(shm_pos_porti_id, IPC_RMID, NULL);
@@ -373,6 +379,7 @@ int main(int argc, char * argv[]){
     /*shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);*/
     shmctl(shm_statusNavi_id, IPC_RMID, NULL);
     shmctl(shm_statusMerci_id, IPC_RMID, NULL);
+    shmctl(shm_statusMerciTot_id, IPC_RMID, NULL);
 
     free(pid_navi);
     free(pid_porti);
@@ -606,16 +613,16 @@ void check_inputs(){
     }
 }
 
-void dailyPrint(int * status, int * statusMerci, int giorno){
+void dailyPrint(int * statusNavi, int * statusMerci, int giorno){
     int carico = 0;
     int noCarico = 0;
     int operandoPorto = 0;
     int i;
 
     for(i = 0; i < SO_NAVI; i++){
-        noCarico += status[(i * 4) + 1];
-        carico += status[(i * 4) + 2];
-        operandoPorto += status[(i * 4) + 3];
+        noCarico += statusNavi[(i * 4) + 1];
+        carico += statusNavi[(i * 4) + 2];
+        operandoPorto += statusNavi[(i * 4) + 3];
     }
     printf("GIORNO\t->\t[%d]\n", giorno);
     printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
@@ -624,4 +631,29 @@ void dailyPrint(int * status, int * statusMerci, int giorno){
     for(i = 0; i < SO_MERCI; i++){
         printf("Merce->%d presente in porto->%d\tpresente in nave->%d\tconsegnata in porto->%d\tscaduta in porto->%d\tscaduta in nave->%d\n", (i + 1), statusMerci[(i*5)], statusMerci[(i*5)+1], statusMerci[(i*5)+2], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
     }
+}
+
+void finalReport(int * statusNavi, int * statusMerci, int * statusMerciTot, int * maxOfferte, int * maxRichieste){
+    int carico = 0;
+    int noCarico = 0;
+    int operandoPorto = 0;
+    int i;
+
+    printf("----------------------------------------------------------------------------------------------\n\n[SISTEMA]\t->\tREPORT FINALE\n\n");
+    for(i = 0; i < SO_NAVI; i++){
+        noCarico += statusNavi[(i * 4) + 1];
+        carico += statusNavi[(i * 4) + 2];
+        operandoPorto += statusNavi[(i * 4) + 3];
+    }
+    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
+    printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
+    printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n\n", operandoPorto);
+
+    for(i = 0; i < SO_MERCI; i++){
+        printf("Merce -> %d, totale generata %d, di cui -> presente in porto->%d\tpresente in nave->%d\tconsegnata in porto->%d\tscaduta in porto->%d\tscaduta in nave->%d\n", (i + 1),statusMerciTot[i], statusMerci[(i*5)], statusMerci[(i*5)+1], statusMerci[(i*5)+2], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
+    }
+
+
+
+    printf("----------------------------------------------------------------------------------------------\n");
 }

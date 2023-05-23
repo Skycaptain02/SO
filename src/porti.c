@@ -11,7 +11,7 @@ Merce * tipi_merce;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
 int riga_matrice, merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
-int * qta_merci_scadute, * statusMerci, * statusMerciTot;
+int * qta_merci_scadute, * statusMerci, * statusMerciTot, * maxOfferte, * maxRichieste, * offerteTot, * richiesteTot;
 
 int flag_end = 0;
 
@@ -35,7 +35,7 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_statusMerciTot_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_statusMerciTot_id, shm_maxOfferte_id, shm_maxRichieste_id;
     int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno;
@@ -61,9 +61,12 @@ int main(int argc, char * argv[]){
 
     listCreate(&listaRichieste);
     listCreate(&listaOfferte);
+
     tipi_richieste = malloc(sizeof(int) * SO_MERCI);
     qta_merci_scadute = malloc(sizeof(int));
     rem_life = malloc(sizeof(int));
+    offerteTot = malloc(sizeof(int) * SO_MERCI);
+    richiesteTot = malloc(sizeof(int) * SO_MERCI);
 
     /**
      * Creo i primi 4 porti su i 4 lati della mappa
@@ -151,6 +154,12 @@ int main(int argc, char * argv[]){
 
     shm_statusMerciTot_id = shmget(getppid() + 11, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
     statusMerciTot = shmat(shm_statusMerciTot_id, NULL, 0);
+
+    shm_maxOfferte_id = shmget(getppid() + 12, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    maxOfferte = shmat(shm_maxOfferte_id, NULL, 0);
+
+    shm_maxRichieste_id = shmget(getppid() + 13, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    maxRichieste = shmat(shm_maxRichieste_id, NULL, 0);
 
 
     /*Fine allocazione shared memory*/
@@ -252,6 +261,13 @@ int main(int argc, char * argv[]){
     shmdt(matr_richieste);
     shmdt(matr_offerte);
     shmdt(statusMerci);
+    shmdt(statusMerciTot);
+
+    free(tipi_richieste);
+    free(qta_merci_scadute);
+    free(rem_life);
+    free(offerteTot);
+    free(richiesteTot);
 }
 
 /**
@@ -291,10 +307,12 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                         listInsert(&listaOfferte, tipi_merce[0]);
                         statusMerci[((0) * 5)] += 1;
                         statusMerciTot[0] +=1;
+                        offerteTot[0] += 1;
                         
                     }else{
                         arr_richieste_global[(riga_matrice * (SO_MERCI+1)) + 1] += 1;
                         listInsert(&listaRichieste, tipi_merce[0]);
+                        richiesteTot[0] +=1;
                     }
                 }
             }
@@ -320,17 +338,35 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                 if(flag){/*OFFERTE*/
                     arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaOfferte, tipi_merce[id_merce - 1]);
-                    statusMerci[(id_merce-1)*5] += 1;
-                    statusMerci[(id_merce-1)] += 1;
+                    statusMerci[(id_merce - 1) * 5] += 1;
+                    statusMerciTot[(id_merce - 1)] += 1;
+                    offerteTot[(id_merce - 1)] += 1;
+                    
                 }
                 else{/*RICHIESTE*/
                     arr_richieste_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaRichieste, tipi_merce[id_merce - 1]);
+                    richiesteTot[(id_merce - 1)] += 1;
                 }
                 
             }
             id_merce = (id_merce != SO_MERCI) ? id_merce += 1 : 1;
         } 
+    }
+    for(i = 0; i < SO_MERCI; i++){
+        if(flag){
+            if(offerteTot[i] > maxOfferte[(i * 2) + 1]){
+                maxOfferte[i * 2] = getpid();
+                maxOfferte[(i * 2) + 1] = offerteTot[i];
+            }
+        }
+        else{
+            if(richiesteTot[i] > maxRichieste[(i*2)+1]){
+                maxRichieste[i * 2] = getpid();
+                maxOfferte[(i * 2) + 1] = richiesteTot[i];
+            }
+            
+        }
     }
 }
 
