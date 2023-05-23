@@ -9,8 +9,8 @@ void dailyPrint(int *, int *, int);
 int main(int argc, char * argv[]){
 
     int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id, shm_merci_cosegnate_id;
-    int shm_statusNavi_id, shm_statusMerci_id;
-    int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global;
+    int shm_statusNavi_id, shm_statusMerci_id, shm_statusMerciTot_id, shm_maxOfferte_id, shm_maxRichieste_id;
+    int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global, * statusMerciTot, * maxOfferte, * maxRichieste;
     double * arr_pos_porti;
     int * porti_selezionati, * merci_consegnate, * statusNavi, * statusMerci;
     Merce * tipi_merci;
@@ -87,14 +87,25 @@ int main(int argc, char * argv[]){
     shm_offerte_global_id = shmget(getpid() + 7, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600 | IPC_CREAT);
     arr_offerte_global = shmat(shm_offerte_global_id, NULL, 0);
 
-    shm_merci_cosegnate_id = shmget(getpid() + 8, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
-    merci_consegnate = shmat(shm_merci_cosegnate_id, NULL, 0);
+    /*
+        shm_merci_cosegnate_id = shmget(getpid() + 8, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
+        merci_consegnate = shmat(shm_merci_cosegnate_id, NULL, 0);
+    */
 
     shm_statusNavi_id = shmget(getpid() + 9, sizeof(int) * SO_NAVI * 4, 0600 | IPC_CREAT);
     statusNavi = shmat(shm_statusNavi_id, NULL, 0);
 
     shm_statusMerci_id = shmget(getpid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
+
+    shm_statusMerciTot_id = shmget(getpid() + 11, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
+    statusMerciTot = shmat(shm_statusMerciTot_id, NULL, 0);
+
+    shm_maxOfferte_id = shmget(getpid() + 12, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    maxOfferte = shmat(shm_maxOfferte_id, NULL, 0);
+
+    shm_maxRichieste_id = shmget(getpid() + 13, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    maxRichieste = shmat(shm_maxRichieste_id, NULL, 0);
     /*Fine allocazione delle shared memory*/
 
     /**
@@ -112,7 +123,7 @@ int main(int argc, char * argv[]){
     /*Fine Sezione crezione semaforo per configuazione*/
 
     for(i = 0; i < SO_MERCI; i++){
-        merci_consegnate[i] = 0;
+        /*merci_consegnate[i] = 0;*/
     }
 
     switch(fork()){
@@ -318,9 +329,11 @@ int main(int argc, char * argv[]){
         free(porti_random);
         
     }
+    /*
     for(i = 0; i < SO_MERCI; i++){
         printf("Merce-> %d\tconsegnata: %d\tvolte\n", i+1, merci_consegnate[i]);
     }
+    */
     
     /**
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
@@ -346,7 +359,7 @@ int main(int argc, char * argv[]){
     shmdt(arr_offerte);
     shmdt(arr_richieste_global);
     shmdt(arr_offerte_global);
-    shmdt(merci_consegnate);
+    /*shmdt(merci_consegnate);*/
     shmdt(statusNavi);
     shmdt(statusMerci);
 
@@ -357,7 +370,7 @@ int main(int argc, char * argv[]){
     shmctl(shm_offerte_id, IPC_RMID, NULL);
     shmctl(shm_richieste_global_id, IPC_RMID, NULL);
     shmctl(shm_offerte_global_id, IPC_RMID, NULL);
-    shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);
+    /*shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);*/
     shmctl(shm_statusNavi_id, IPC_RMID, NULL);
     shmctl(shm_statusMerci_id, IPC_RMID, NULL);
 

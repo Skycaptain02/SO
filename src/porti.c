@@ -11,7 +11,7 @@ Merce * tipi_merce;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
 int riga_matrice, merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
-int * qta_merci_scadute, * statusMerci;
+int * qta_merci_scadute, * statusMerci, * statusMerciTot;
 
 int flag_end = 0;
 
@@ -35,7 +35,7 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_statusMerciTot_id;
     int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno;
@@ -148,6 +148,11 @@ int main(int argc, char * argv[]){
 
     shm_statusMerci_id = shmget(getppid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
+
+    shm_statusMerciTot_id = shmget(getppid() + 11, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
+    statusMerciTot = shmat(shm_statusMerciTot_id, NULL, 0);
+
+
     /*Fine allocazione shared memory*/
 
     /**
@@ -285,6 +290,7 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                         arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + 1] += 1;
                         listInsert(&listaOfferte, tipi_merce[0]);
                         statusMerci[((0) * 5)] += 1;
+                        statusMerciTot[0] +=1;
                         
                     }else{
                         arr_richieste_global[(riga_matrice * (SO_MERCI+1)) + 1] += 1;
@@ -315,6 +321,7 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                     arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaOfferte, tipi_merce[id_merce - 1]);
                     statusMerci[(id_merce-1)*5] += 1;
+                    statusMerci[(id_merce-1)] += 1;
                 }
                 else{/*RICHIESTE*/
                     arr_richieste_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
