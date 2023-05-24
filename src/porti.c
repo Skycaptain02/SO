@@ -11,7 +11,8 @@ Merce * tipi_merce;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
 int riga_matrice, merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
-int * qta_merci_scadute, * statusMerci, * statusMerciTot, * maxOfferte, * maxRichieste, * offerteTot, * richiesteTot;
+int * qta_merci_scadute, * statusMerci, * maxOfferte, * maxRichieste, * offerteTot, * richiesteTot;
+int gen;
 
 int flag_end = 0;
 
@@ -35,7 +36,7 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_statusMerciTot_id, shm_maxOfferte_id, shm_maxRichieste_id;
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id;
     int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno;
@@ -46,8 +47,7 @@ int main(int argc, char * argv[]){
 
     int * tipi_richieste;
     int * rem_life;
-    
-
+    struct sembuf sem_op;
 
     srand(getpid());
     
@@ -73,6 +73,10 @@ int main(int argc, char * argv[]){
      * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
      * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
     */
+
+    for(i = 0; i < SO_MERCI; i++){
+        offerteTot[i] = 0;
+    }
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
     while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
@@ -152,13 +156,10 @@ int main(int argc, char * argv[]){
     shm_statusMerci_id = shmget(getppid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
 
-    shm_statusMerciTot_id = shmget(getppid() + 11, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
-    statusMerciTot = shmat(shm_statusMerciTot_id, NULL, 0);
-
-    shm_maxOfferte_id = shmget(getppid() + 12, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    shm_maxOfferte_id = shmget(getppid() + 11, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
     maxOfferte = shmat(shm_maxOfferte_id, NULL, 0);
 
-    shm_maxRichieste_id = shmget(getppid() + 13, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
+    shm_maxRichieste_id = shmget(getppid() + 12, sizeof(int) * SO_MERCI * 2, 0600 | IPC_CREAT);
     maxRichieste = shmat(shm_maxRichieste_id, NULL, 0);
 
 
@@ -174,8 +175,9 @@ int main(int argc, char * argv[]){
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     /*Fine allocazione semafori*/
 
-    /*Allocazione cosa di messaggi*/
+    /*Allocazione coda di messaggi*/
     msg_porti_navi_id = msgget(getppid() , 0600 | IPC_CREAT);
+    /*Fine allocazione coda di messaggi*/
 
     i = 0;
     while(arr_richieste_global[i * (SO_MERCI + 1)] != getpid()){
@@ -255,13 +257,11 @@ int main(int argc, char * argv[]){
         listFree(&listaOfferte);
     }
     */
-   
     shmdt(arr_pos);
     shmdt(tipi_merce);
     shmdt(matr_richieste);
     shmdt(matr_offerte);
     shmdt(statusMerci);
-    shmdt(statusMerciTot);
 
     free(tipi_richieste);
     free(qta_merci_scadute);
@@ -303,16 +303,15 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
                 }
                 else{
                     if(flag){
+                        offerteTot[0] += 1;
                         arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + 1] += 1;
                         listInsert(&listaOfferte, tipi_merce[0]);
                         statusMerci[((0) * 5)] += 1;
-                        statusMerciTot[0] +=1;
-                        offerteTot[0] += 1;
                         
                     }else{
+                        richiesteTot[0] +=1;
                         arr_richieste_global[(riga_matrice * (SO_MERCI+1)) + 1] += 1;
                         listInsert(&listaRichieste, tipi_merce[0]);
-                        richiesteTot[0] +=1;
                     }
                 }
             }
@@ -336,17 +335,16 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
             fill += tipi_merce[id_merce-1].weight;
             if(fill <= req_fill){
                 if(flag){/*OFFERTE*/
+                    offerteTot[(id_merce - 1)] += 1;
                     arr_offerte_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaOfferte, tipi_merce[id_merce - 1]);
                     statusMerci[(id_merce - 1) * 5] += 1;
-                    statusMerciTot[(id_merce - 1)] += 1;
-                    offerteTot[(id_merce - 1)] += 1;
-                    
                 }
                 else{/*RICHIESTE*/
+                    richiesteTot[(id_merce - 1)] += 1;
                     arr_richieste_global[(riga_matrice * (SO_MERCI + 1)) + id_merce] += 1;
                     listInsert(&listaRichieste, tipi_merce[id_merce - 1]);
-                    richiesteTot[(id_merce - 1)] += 1;
+                    
                 }
                 
             }
@@ -363,11 +361,12 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
         else{
             if(richiesteTot[i] > maxRichieste[(i*2)+1]){
                 maxRichieste[i * 2] = getpid();
-                maxOfferte[(i * 2) + 1] = richiesteTot[i];
+                maxRichieste[(i * 2) + 1] = richiesteTot[i];
             }
             
         }
     }
+   
 }
 
 

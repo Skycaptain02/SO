@@ -23,13 +23,13 @@ void handler_start(int signal){
     switch(signal){
         case SIGABRT:
             flag_end = 1;
+            printf("CIAO CIAO\n");
             funcEnd();
         break;
         default:
             printf("ERROR\n");
         break;
     }
-
 }
 
 int main(int argc, char * argv[]){
@@ -79,8 +79,8 @@ int main(int argc, char * argv[]){
     shm_pos_porti_id = shmget(getppid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
     pos_porti = shmat(shm_pos_porti_id, NULL, 0);  
 
-    /*shm_merci_consegnate_id = shmget(getppid() + 8, sizeof(int) * (SO_MERCI), 0600 | IPC_CREAT);
-    merci_consegnate = shmat(shm_merci_consegnate_id, NULL, 0);*/
+    shm_merci_consegnate_id = shmget(getppid() + 8, sizeof(int) * (SO_MERCI), 0600 | IPC_CREAT);
+    merci_consegnate = shmat(shm_merci_consegnate_id, NULL, 0);
 
     harbor_des = rand() % SO_PORTI;
     ship_pos_x = (rand() % (SO_LATO + 1)) - (SO_LATO / 2);
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]){
                             }
                             current_weight -= temp_stiva.top->elem.weight;
                             listRemoveToLeft(&stiva, NULL, temp_stiva.top->elem.type);
-                            /*merci_consegnate[temp_stiva.top->elem.type - 1] += 1;*/
+                            merci_consegnate[temp_stiva.top->elem.type - 1] += 1;
                             merci_scaricate += 1;
                             
                         }
