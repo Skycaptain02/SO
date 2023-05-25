@@ -12,10 +12,10 @@ void handler(int signal){
     switch (signal)
     {
     case SIGABRT:
-        flag_end = 1;
+        flag_end = 0;
         break;
     case SIGUSR1:
-        dailyDisaster();
+        /*dailyDisaster();*/
         break;
     default:
         break;
@@ -25,8 +25,9 @@ void handler(int signal){
 int main(int argc, char * argv[]){
     int a;
     int sem_config_id, err;
-    int shm_pidNavi_id, shm_pidPorti_id;
-    
+    int shm_pidNavi_id, shm_pidPorti_id, shm_statusNavi_id;
+    int * statusNavi;
+
     int i;
     int numNavi = SO_NAVI;
     struct timespec req, rem, rem2;
@@ -42,9 +43,10 @@ int main(int argc, char * argv[]){
     sa.sa_flags = SA_RESTART;
     sigaction(SIGABRT, &sa, NULL);
 
+
     if(SO_MAELESTROM < 24){
         modulo = 0;
-        nsec = (SO_MAELESTROM / 24) * CONVERSION_SEC_NSEN;
+        nsec = (((double)SO_MAELESTROM / (double)24) * CONVERSION_SEC_NSEN);
         req.tv_sec = (time_t)(modulo);
         req.tv_nsec = (long)nsec;
     }
@@ -66,8 +68,12 @@ int main(int argc, char * argv[]){
     shm_pidPorti_id = shmget(getppid() + 14, sizeof(pid_t) * SO_PORTI, 0600 | IPC_CREAT);
     pidPorti = shmat(shm_pidPorti_id, NULL, 0);
 
+    shm_statusNavi_id = shmget(getppid() + 9, sizeof(int) * SO_NAVI * 5, 0600 | IPC_CREAT);
+    statusNavi = shmat(shm_statusNavi_id, NULL, 0);
+
+    i = 0;
     while(flag_end && numNavi > 0){
-        while(req.tv_nsec != 0 || req.tv_sec != 0){
+        while((req.tv_nsec != 0 || req.tv_sec != 0) && flag_end){
             if(nanosleep(&req, &rem) == -1){
                 req.tv_nsec = rem.tv_nsec;
                 req.tv_sec = rem.tv_sec;
@@ -81,11 +87,15 @@ int main(int argc, char * argv[]){
         while(pidNavi[pid_random] == -1){
             pid_random = rand() % SO_NAVI;
         }
-        kill(pidNavi[pid_random], SIGABRT);
-        pidNavi[i] = - 1;
+        kill(pidNavi[pid_random], SIGTERM);
+        pidNavi[pid_random] = - 1;
+        statusNavi[(pid_random * 5) + 4] = 1;  
         numNavi -= 1;
         req.tv_sec = (time_t)modulo;
         req.tv_nsec = (long)nsec;
+    }
+    if(numNavi == 0){
+        kill(getppid(), SIGABRT);
     }
 }
 
