@@ -20,10 +20,10 @@
 
 #define SO_NAVI 1000
 #define SO_PORTI 100
-#define SO_MERCI 1
+#define SO_MERCI 30
 #define SO_SIZE 1
-#define SO_MIN_VITA 50
-#define SO_MAX_VITA 50
+#define SO_MIN_VITA 1
+#define SO_MAX_VITA 3
 #define SO_LATO 1000
 #define SO_SPEED 500
 #define SO_CAPACITY 10
@@ -36,6 +36,7 @@
 #define SO_MAELESTROM 1
 
 #define PRINT_MERCI 0
+#define CONVERSION_SEC_NSEN 1000000000
 
 typedef struct{
     int type;

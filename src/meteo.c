@@ -1,21 +1,19 @@
 #include "env_var.h"
 #include "../lib/ipc.h"
 
-#define CONVERSION_SEC_NSEN 1000000000
-
 void dailyDisaster();
 
-int flag_end = 1;
+int flag_end = 0, swellIndex = 0;
 pid_t * pidNavi, * pidPorti;
+int * statusNavi, * portiSwell;
 
 void handler(int signal){
-    switch (signal)
-    {
+    switch (signal){
     case SIGABRT:
-        flag_end = 0;
+        flag_end = 1;
         break;
     case SIGUSR1:
-        /*dailyDisaster();*/
+        dailyDisaster();
         break;
     default:
         break;
@@ -23,11 +21,9 @@ void handler(int signal){
 }
 
 int main(int argc, char * argv[]){
-    int a;
     int sem_config_id, err;
-    int shm_pidNavi_id, shm_pidPorti_id, shm_statusNavi_id;
-    int * statusNavi;
-
+    int shm_pidNavi_id, shm_pidPorti_id, shm_statusNavi_id, shm_portiSwell_id;
+    
     int i;
     int numNavi = SO_NAVI;
     struct timespec req, rem, rem2;
@@ -37,11 +33,12 @@ int main(int argc, char * argv[]){
     int pid_random;
 
     srand(getpid());
-    
+ 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler;
     sa.sa_flags = SA_RESTART;
     sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
 
 
     if(SO_MAELESTROM < 24){
@@ -71,9 +68,13 @@ int main(int argc, char * argv[]){
     shm_statusNavi_id = shmget(getppid() + 9, sizeof(int) * SO_NAVI * 5, 0600 | IPC_CREAT);
     statusNavi = shmat(shm_statusNavi_id, NULL, 0);
 
+    shm_portiSwell_id = shmget(getppid() + 16, sizeof(int) * SO_DAYS, 0600 | IPC_CREAT);
+    portiSwell = shmat(shm_portiSwell_id, NULL, 0);
+
     i = 0;
-    while(flag_end && numNavi > 0){
-        while((req.tv_nsec != 0 || req.tv_sec != 0) && flag_end){
+    
+    while(!flag_end && numNavi > 0){
+        while((req.tv_nsec != 0 || req.tv_sec != 0) && !flag_end){
             if(nanosleep(&req, &rem) == -1){
                 req.tv_nsec = rem.tv_nsec;
                 req.tv_sec = rem.tv_sec;
@@ -83,34 +84,49 @@ int main(int argc, char * argv[]){
                 req.tv_sec = 0;
             }
         }
-        pid_random = rand() % SO_NAVI;
-        while(pidNavi[pid_random] == -1){
+        if(!flag_end){
             pid_random = rand() % SO_NAVI;
+            while(pidNavi[pid_random] == -1){
+                pid_random = rand() % SO_NAVI;
+            }
+            kill(pidNavi[pid_random], SIGTERM);
+            pidNavi[pid_random] = - 1;
+            statusNavi[(pid_random * 6) + 1] = 0;  
+            statusNavi[(pid_random * 6) + 2] = 0;  
+            statusNavi[(pid_random * 6) + 3] = 0;  
+            statusNavi[(pid_random * 6) + 4] = 1;  
+            numNavi -= 1;
+            req.tv_sec = (time_t)modulo;
+            req.tv_nsec = (long)nsec;
         }
-        kill(pidNavi[pid_random], SIGTERM);
-        pidNavi[pid_random] = - 1;
-        statusNavi[(pid_random * 5) + 4] = 1;  
-        numNavi -= 1;
-        req.tv_sec = (time_t)modulo;
-        req.tv_nsec = (long)nsec;
+        
     }
     if(numNavi == 0){
         kill(getppid(), SIGABRT);
     }
+
+    shmdt(pidNavi);
+    shmdt(pidPorti);
+    shmdt(statusNavi);
+    shmdt(portiSwell);
 }
 
 void dailyDisaster(){
+
     /**
-     * SIGSTOP -> NAVE ATTENDE ATTENDE MENTRE VIAGGIA / PORTO ATTENDE
+     * SIGUSR2 -> NAVE ATTENDE ATTENDE MENTRE VIAGGIA / PORTO ATTENDE
      * SIGABRT -> NAVE ESPLODE
-    */ 
+    */
     int pid_random;
     pid_random = rand() % SO_NAVI;
     while(pidNavi[pid_random] == -1){
         pid_random = rand() % SO_NAVI;
     }
-    kill(pidNavi[pid_random], SIGSTOP);
+    kill(pidNavi[pid_random], SIGUSR2);
+    statusNavi[(pid_random * 6) + 5] += 1;
     
     pid_random = rand() % SO_PORTI;
-    kill(pidPorti[pid_random], SIGSTOP);
+    kill(pidPorti[pid_random], SIGUSR2);
+    portiSwell[swellIndex] = pidPorti[pid_random];
+    swellIndex += 1;
 }

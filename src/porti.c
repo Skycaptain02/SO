@@ -4,6 +4,7 @@
 
 void request_offer_gen(Merce *, int *, int * , int, int);
 void dailyGen();
+void swellPause();
 
 List listaRichieste, listaOfferte;
 Merce * tipi_merce;
@@ -18,11 +19,14 @@ int flag_end = 0;
 
 void handler_start(int signal){
     switch(signal){
-        case SIGUSR2:
+        case SIGUSR1:
             dailyGen();
         break;
         case SIGABRT:
             flag_end = 1;
+        break;
+        case SIGUSR2:
+            swellPause();
         break;
         default:
         break;
@@ -163,8 +167,6 @@ int main(int argc, char * argv[]){
 
     shmStatusPorti_id = shmget(getppid() + 15, sizeof(int) * SO_PORTI * 6, 0600 | IPC_CREAT);
     statusPorti = shmat(shmStatusPorti_id, NULL, 0);
-
-
     /*Fine allocazione shared memory*/
 
     /**
@@ -273,7 +275,13 @@ int main(int argc, char * argv[]){
     shmdt(tipi_merce);
     shmdt(matr_richieste);
     shmdt(matr_offerte);
+    shmdt(porti_selezionati);
+    shmdt(arr_richieste_global);
+    shmdt(arr_offerte_global);
     shmdt(statusMerci);
+    shmdt(maxOfferte);
+    shmdt(maxRichieste);
+    shmdt(statusPorti);
 
     free(tipi_richieste);
     free(qta_merci_scadute);
@@ -402,4 +410,42 @@ void dailyGen(){
     printf("RICHIESTE %d\n", getpid());
     listPrint(&listaRichieste);*/
     
+}
+
+void swellPause(){
+    struct timespec req, rem;
+    int modulo;
+    int i = 0;
+    int exit = 0;
+    double nsec, waitTime;
+    sigset_t maskBlock;
+    rem.tv_nsec = 0;
+    rem.tv_sec = 0;
+
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_BLOCK, &maskBlock, NULL);
+    if(SO_SWELL_DURATION < 24){
+        modulo = 0;
+        nsec = (((double)SO_SWELL_DURATION / (double)24) * CONVERSION_SEC_NSEN);
+        req.tv_sec = (time_t)(modulo);
+        req.tv_nsec = (long)nsec;
+    }
+    else{
+        modulo = (int)SO_SWELL_DURATION / 24;
+        nsec = ((double)SO_SWELL_DURATION / (double)24 - modulo) * CONVERSION_SEC_NSEN;
+        req.tv_sec = (time_t)(modulo);
+        req.tv_nsec = (long)(nsec);
+    }
+
+    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
+    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
+
+    nanosleep(&req, &rem);
+
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
 }

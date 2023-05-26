@@ -3,7 +3,7 @@
 #include "../lib/list.h"
 #include <math.h>
 
-#define CONVERSION_SEC_NSEN 1000000000
+
 
 void travel(int *, double);
 struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
@@ -11,6 +11,7 @@ int getRow(int *, double *, int );
 double calcoloDistanza(int, double *, int, int);
 int harborOperations(int *, int);
 void funcEnd(int);
+void stormPause();
 
 
 List stiva;
@@ -18,6 +19,7 @@ int flag_end = 0, flag_day = 0, current_weight = 0;
 int * arr_richieste_global, * arr_offerte_global, * merci_consegnate, * statusNavi, * statusMerci, * merci_scadute;
 Merce * tipi_merce;
 double * pos_porti;
+int posStatus = 0;
 
 void handler_start(int signal){
     switch(signal){
@@ -29,6 +31,9 @@ void handler_start(int signal){
             flag_end = 1;
             funcEnd(1);
         break;
+        case SIGUSR2:
+            stormPause();
+            break;
         default:
             printf("ERROR\n");
         break;
@@ -76,6 +81,7 @@ int main(int argc, char * argv[]){
     sa.sa_flags = SA_RESTART;
     sigaction(SIGABRT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGUSR2, &sa, NULL);
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
     while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
@@ -101,19 +107,21 @@ int main(int argc, char * argv[]){
     shm_offerte_local_id = shmget(getppid() + 7, sizeof(int) * ((SO_MERCI + 1) * SO_PORTI), 0600);
     arr_offerte_global = shmat(shm_offerte_local_id, NULL, 0);
 
-    shm_statusNavi_id = shmget(getppid() + 9, sizeof(int) * SO_NAVI * 4, 0600 | IPC_CREAT);
+    shm_statusNavi_id = shmget(getppid() + 9, sizeof(int) * SO_NAVI * 6, 0600 | IPC_CREAT);
     statusNavi = shmat(shm_statusNavi_id, NULL, 0);
     
     shm_statusMerci_id = shmget(getppid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
     statusMerci = shmat(shm_statusMerci_id, NULL, 0);
 
+
     i = 0;
-    while(statusNavi[i * 5] != getpid()){
+    while(statusNavi[i * 6] != getpid()){
         i++;
-    }    
-    statusNavi[(i * 5) + 1] = 1;
-    statusNavi[(i * 5) + 2] = 0;
-    statusNavi[(i * 5) + 3] = 0;
+    }
+    posStatus = i;
+    statusNavi[(posStatus * 6) + 1] = 1;
+    statusNavi[(posStatus * 6) + 2] = 0;
+    statusNavi[(posStatus * 6) + 3] = 0;
     i = 0;
 
     distanza = calcoloDistanza(harbor_des, pos_porti, ship_pos_x, ship_pos_y);
@@ -233,7 +241,7 @@ int main(int argc, char * argv[]){
     }
 }
 
-void travel(int * status, double distanza){
+void travel(int * statusNavi, double distanza){
     sigset_t mask_block, mask_unblock;
     struct timespec req, rem;
     int modulo; 
@@ -254,31 +262,28 @@ void travel(int * status, double distanza){
         req.tv_sec = (time_t)(modulo);
         req.tv_nsec = (long)(nsec);
     }
-
-    while(status[i * 5] != getpid()){
-        i++;
-    }    
     if(current_weight == 0){
-        status[(i * 5) + 1] = 1;
-        status[(i * 5) + 2] = 0;
-        status[(i * 5) + 3] = 0;
-
+        statusNavi[(posStatus * 6) + 1] = 1;
+        statusNavi[(posStatus * 6) + 2] = 0;
+        statusNavi[(posStatus * 6) + 3] = 0;
     }
     else{
-        status[(i * 5) + 1] = 0;
-        status[(i * 5) + 2] = 1;
-        status[(i * 5) + 3] = 0;
+        statusNavi[(posStatus * 6) + 1] = 0;
+        statusNavi[(posStatus * 6) + 2] = 1;
+        statusNavi[(posStatus * 6) + 3] = 0;
     }
     /*printf("[PID %d] DEVO ASPETTARE -> %ld SECONDI \n", getpid(), req.tv_sec);
     printf("[PID %d] DEVO ASPETTARE -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
-    if(nanosleep(&req, &rem) == - 1){
-        printf("ERRORE NANOSLEEPPPPPPPPPPPPPPPPPPP\n");
-    }
-    if(rem.tv_nsec != 0 || rem.tv_sec != 0){
-        printf("SOSPESOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
-        printf("TEMPO RIMASTO SEC -> %ld\n", rem.tv_sec);
-        printf("TEMPO RIMASTO N_SEC -> %ld\n", rem.tv_nsec);
-        flag_end = 1;
+
+    while(req.tv_nsec != 0 || req.tv_sec != 0){
+        if(nanosleep(&req, &rem) == -1){
+            req.tv_nsec = rem.tv_nsec;
+            req.tv_sec = rem.tv_sec;
+        }  
+        else{
+            req.tv_nsec = 0;
+            req.tv_sec = 0;
+        }
     }
     if(stiva.top != NULL){
         for(i = 0; i < modulo; i++){
@@ -287,21 +292,24 @@ void travel(int * status, double distanza){
     }
 }
 
-int harborOperations(int * status, int quantity){
+int harborOperations(int * statusNavi, int quantity){
     struct timespec req, rem;
     int modulo;
     int i = 0;
     int exit = 0;
     double nsec, waitTime;
+    sigset_t maskBlock;
     rem.tv_nsec = 0;
     rem.tv_sec = 0;
 
-    while(status[i * 5] != getpid()){
-        i++;
-    }
-    status[(i * 5) + 1] = 0;
-    status[(i * 5) + 2] = 0;
-    status[(i * 5) + 3] = 1;
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_BLOCK, &maskBlock, NULL);
+
+    statusNavi[(posStatus * 6) + 1] = 0;
+    statusNavi[(posStatus * 6) + 2] = 0;
+    statusNavi[(posStatus * 6) + 3] = 1;
     
     waitTime = (double)quantity/(double)SO_LOADSPEED;
     modulo = (int)waitTime;
@@ -315,16 +323,16 @@ int harborOperations(int * status, int quantity){
     /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
     printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
 
-    if(nanosleep(&req, &rem) == - 1){
-        printf("ERRORE NANOSLEEPPPPPPPPPPPPPPPPPPP HARBORO\n");
-    }
+    nanosleep(&req, &rem);
     if(rem.tv_nsec != 0 || rem.tv_sec != 0){
-        printf("SOSPESOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO HARBOR OP\n");
-        printf("TEMPO RIMASTO SEC HARBOR OP -> %ld\n", rem.tv_sec);
-        printf("TEMPO RIMASTO N_SEC HARBOR OP -> %ld\n", rem.tv_nsec);
         exit = 1;
         flag_end = 1;
     }
+    
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
     return exit;
 }
 
@@ -357,22 +365,57 @@ void funcEnd(int flag){
     int i;
 
     if(flag){
-        while(statusNavi[i * 5] != getpid()){
-            i++;
-        }
-        statusNavi[(i * 5) + 1] = 0;
-        statusNavi[(i * 5) + 2] = 0;
-        statusNavi[(i * 5) + 3] = 0;
+        statusNavi[(posStatus * 6) + 1] = 0;
+        statusNavi[(posStatus * 6) + 2] = 0;
+        statusNavi[(posStatus * 6) + 3] = 0;
     }
 
     shmdt(tipi_merce);
     shmdt(pos_porti);
-    /*shmdt(merci_consegnate);*/
+    shmdt(merci_consegnate);
     shmdt(arr_richieste_global);
     shmdt(arr_offerte_global);
     shmdt(statusNavi);
     shmdt(statusMerci);
 
-    
+    free(merci_scadute);
     exit(0);
+}
+
+void stormPause(){
+    struct timespec req, rem;
+    int modulo;
+    int i = 0;
+    int exit = 0;
+    double nsec, waitTime;
+    sigset_t maskBlock;
+    rem.tv_nsec = 0;
+    rem.tv_sec = 0;
+
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_BLOCK, &maskBlock, NULL);
+    if(SO_STORM_DURATION < 24){
+        modulo = 0;
+        nsec = (((double)SO_STORM_DURATION / (double)24) * CONVERSION_SEC_NSEN);
+        req.tv_sec = (time_t)(modulo);
+        req.tv_nsec = (long)nsec;
+    }
+    else{
+        modulo = (int)SO_STORM_DURATION / 24;
+        nsec = ((double)SO_STORM_DURATION / (double)24 - modulo) * CONVERSION_SEC_NSEN;
+        req.tv_sec = (time_t)(modulo);
+        req.tv_nsec = (long)(nsec);
+    }
+
+    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
+    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
+
+    nanosleep(&req, &rem);
+
+    sigemptyset(&maskBlock);
+    sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR2);
+    sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
 }

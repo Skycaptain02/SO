@@ -7,13 +7,14 @@ int checkEndOffers = 0, checkEndRequests = 0, flagEndMaterials = 1;
 void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offerte, int print);
 void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pidPorti, int num_merci, int print);
 void check_inputs();
-void dailyPrint(int *, int *, int *, int);
+void dailyPrint(int *, int *, int *, int *, int);
 void finalReport(int *, int *, int *, int *, int *, int *, int *);
 void endSimulation(pid_t *, pid_t *, pid_t);
 
 void handler(int signal){
     switch (signal){
         case SIGABRT:
+        printf("TUTTE NAV MORT\n");
             flagEndMaelstrom = 1;
         break;
     default:
@@ -23,9 +24,9 @@ void handler(int signal){
 
 int main(int argc, char * argv[]){
 
-    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id, shm_merci_cosegnate_id, shm_satatusPorti_id;
-    int shm_statusNavi_id, shm_statusMerci_id, shm_statusMerciTot_id, shm_maxOfferte_id, shm_maxRichieste_id, shm_pidNavi_id, shm_pidPorti_id;
-    int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global, * statusMerciTot, * maxOfferte, * maxRichieste, * statusPorti;
+    int shm_porti_selezionati_id, shm_pos_porti_id, shm_merci_id, shm_richieste_id, shm_offerte_id, shm_richieste_global_id, shm_offerte_global_id, shm_merci_cosegnate_id, shm_statusPorti_id;
+    int shm_statusNavi_id, shm_statusMerci_id, shm_statusMerciTot_id, shm_maxOfferte_id, shm_maxRichieste_id, shm_pidNavi_id, shm_pidPorti_id, shm_portiSwell_id;
+    int * arr_richieste, * arr_offerte, * arr_richieste_global, * arr_offerte_global, * statusMerciTot, * maxOfferte, * maxRichieste, * statusPorti, * portiSwell;
     double * arr_pos_porti;
     int * porti_selezionati, * merci_consegnate, * statusNavi, * statusMerci, * shmPidNavi, * shmPidPorti;
     Merce * tipi_merci;
@@ -84,6 +85,12 @@ int main(int argc, char * argv[]){
      * parent pid + 8: array che conta il quantitativo di merci consegnate da tutte le navi
      * parent pid + 9: array che visualizza lo status delle navi nel corso della simulazione
      * parent pid + 10: array che salva tutti gli status delle merci in corso della simulazione
+     * parent pid + 11: array che va a salvare i porti con l'offerta maggiore di una specifica merce
+     * parent pid + 12: array che va a salvare i porti che hanno effettuato il maggior numero di richieste
+     * parent pid + 13: array che contiene i pid delle navi
+     * parent pid + 14: array che contiene i pid dei porti
+     * parent pid + 15: array il quale contiene le statistiche merci all'interno di uno specifico porto
+     * parent pid + 16: array dei porti che sono stati colpiti dalla mareggiata
     */
 
     shm_merci_id = shmget(getpid() + 1, sizeof(Merce) * SO_MERCI, 0600 | IPC_CREAT);
@@ -110,7 +117,7 @@ int main(int argc, char * argv[]){
     shm_merci_cosegnate_id = shmget(getpid() + 8, sizeof(int) * SO_MERCI, 0600 | IPC_CREAT);
     merci_consegnate = shmat(shm_merci_cosegnate_id, NULL, 0);
 
-    shm_statusNavi_id = shmget(getpid() + 9, sizeof(int) * SO_NAVI * 5, 0600 | IPC_CREAT);
+    shm_statusNavi_id = shmget(getpid() + 9, sizeof(int) * SO_NAVI * 6, 0600 | IPC_CREAT);
     statusNavi = shmat(shm_statusNavi_id, NULL, 0);
 
     shm_statusMerci_id = shmget(getpid() + 10, sizeof(int) * (SO_MERCI) * 5, 0600 | IPC_CREAT);
@@ -128,8 +135,11 @@ int main(int argc, char * argv[]){
     shm_pidPorti_id = shmget(getpid() + 14, sizeof(pid_t) * SO_PORTI, 0600 | IPC_CREAT);
     shmPidPorti = shmat(shm_pidPorti_id, NULL, 0);
 
-    shm_satatusPorti_id = shmget(getpid() + 15, sizeof(int) * SO_PORTI * 6, 0600 | IPC_CREAT);
-    statusPorti = shmat(shm_satatusPorti_id, NULL, 0);
+    shm_statusPorti_id = shmget(getpid() + 15, sizeof(int) * SO_PORTI * 6, 0600 | IPC_CREAT);
+    statusPorti = shmat(shm_statusPorti_id, NULL, 0);
+
+    shm_portiSwell_id = shmget(getpid() + 16, sizeof(int) * SO_DAYS, 0600 | IPC_CREAT);
+    portiSwell = shmat(shm_portiSwell_id, NULL, 0);
     /*Fine allocazione delle shared memory*/
 
     /**
@@ -249,10 +259,8 @@ int main(int argc, char * argv[]){
     }
 
     for(i = 0; i < SO_NAVI; i++){
-        statusNavi[i * 5] = (unsigned int)pidNavi[i];
-        statusNavi[(i * 5) + 1] = 1;
-        statusNavi[(i * 5) + 2] = 0;
-        statusNavi[(i * 5) + 3] = 0;
+        statusNavi[i * 6] = (unsigned int)pidNavi[i];
+        statusNavi[(i * 6) + 1] = 1;
     }
 
     printf("[SISTEMA]\t -> \t TUTTE LE NAVI SONO PRONTE\n");
@@ -331,8 +339,9 @@ int main(int argc, char * argv[]){
         }
         i++;
         for(j = 0; j < * porti_selezionati; j++){
-            kill(pidPorti[porti_random[j]], SIGUSR2);
+            kill(pidPorti[porti_random[j]], SIGUSR1);
         }
+        kill(pid_meteo, SIGUSR1);
 
         j = 0;
         k = 0;
@@ -340,7 +349,7 @@ int main(int argc, char * argv[]){
         req.tv_sec = 1;
         req.tv_nsec = 0;
         nanosleep(&req, &rem);
-        dailyPrint(statusNavi, statusMerci, statusPorti, i);
+        dailyPrint(statusNavi, statusMerci, statusPorti, portiSwell, i);
         for(x = 1; x <= SO_MERCI; x++){
             for(y = 0; y < SO_PORTI; y++){
                 checkEndOffers += arr_offerte_global[y * (SO_MERCI + 1) + x];
@@ -364,39 +373,47 @@ int main(int argc, char * argv[]){
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
     */
     
-    if(!flagEndMaelstrom){
-        endSimulation(shmPidPorti, shmPidNavi, pid_meteo);
-    }
-    else{
-        endSimulation(shmPidPorti, NULL, pid_meteo);
-    }
+    
+    endSimulation(shmPidPorti, shmPidNavi, pid_meteo);
+
     while(wait(NULL) != -1);
     
-    finalReport(statusNavi, statusMerci, statusMerciTot, maxOfferte, maxRichieste, merci_consegnate, statusPorti);
+    finalReport(statusNavi, statusMerci, maxOfferte, maxRichieste, merci_consegnate, statusPorti, portiSwell);
     
-    shmdt(porti_selezionati);
-    shmdt(arr_pos_porti);
     shmdt(tipi_merci);
     shmdt(arr_richieste);
     shmdt(arr_offerte);
+    shmdt(arr_pos_porti);
+    shmdt(porti_selezionati);
     shmdt(arr_richieste_global);
     shmdt(arr_offerte_global);
     shmdt(merci_consegnate);
     shmdt(statusNavi);
     shmdt(statusMerci);
-    shmdt(statusMerciTot);
+    shmdt(maxOfferte);
+    shmdt(maxRichieste);
+    shmdt(shmPidNavi);
+    shmdt(shmPidPorti);
+    shmdt(statusPorti);
+    shmdt(portiSwell);
 
-    shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
-    shmctl(shm_pos_porti_id, IPC_RMID, NULL);
+
     shmctl(shm_merci_id, IPC_RMID, NULL);
     shmctl(shm_richieste_id, IPC_RMID, NULL);
     shmctl(shm_offerte_id, IPC_RMID, NULL);
+    shmctl(shm_pos_porti_id, IPC_RMID, NULL);
+    shmctl(shm_porti_selezionati_id, IPC_RMID, NULL);
     shmctl(shm_richieste_global_id, IPC_RMID, NULL);
     shmctl(shm_offerte_global_id, IPC_RMID, NULL);
     shmctl(shm_merci_cosegnate_id, IPC_RMID, NULL);
     shmctl(shm_statusNavi_id, IPC_RMID, NULL);
     shmctl(shm_statusMerci_id, IPC_RMID, NULL);
-    shmctl(shm_statusMerciTot_id, IPC_RMID, NULL);
+    shmctl(shm_maxOfferte_id, IPC_RMID, NULL);
+    shmctl(shm_maxRichieste_id, IPC_RMID, NULL);
+    shmctl(shm_pidNavi_id, IPC_RMID, NULL);
+    shmctl(shm_pidPorti_id, IPC_RMID, NULL);
+    shmctl(shm_statusPorti_id, IPC_RMID, NULL);
+    shmctl(shm_portiSwell_id, IPC_RMID, NULL);
 
     free(pidNavi);
     free(pidPorti);
@@ -582,7 +599,7 @@ void check_inputs(){
         printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
         exit(- 1);
     }
-    else if(SO_NAVI < 0){
+    else if(SO_NAVI < 1){
         printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI NAVI INSERITO E' < 0, BISOGNA INSERIRNE ALMENO UN NUMERO > 0\n");
         exit(- 1);
     }
@@ -600,48 +617,50 @@ void check_inputs(){
             exit(- 1);
         }
     }
-    else if(SO_LATO <= 1){
-        printf("[SISTEMA]\t ->  \t ERRORE: IL LATO DELLA MAPPA DEVE ESSERE > 1\n");
+    else if(SO_LATO < 100){
+        printf("[SISTEMA]\t ->  \t ERRORE: IL LATO DELLA MAPPA DEVE ESSERE >= 100\n");
         exit(- 1);
     }
-    else if(SO_SPEED <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DELLE NAVI DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_SPEED < 50){
+        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DELLE NAVI DEVE ESSERE UN NUMERO >= 50\n");
         exit(- 1);
     }
-    else if(SO_CAPACITY <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: LA CAPACITA' DELLE NAVI DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_CAPACITY < 10){
+        printf("[SISTEMA]\t -> \t ERRORE: LA CAPACITA' DELLE NAVI DEVE ESSERE UN NUMERO >= 10\n");
         exit(- 1);
     }
-    else if(SO_BANCHINE <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: LE BANCHINE PER PORTO DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_BANCHINE < 1){
+        printf("[SISTEMA]\t -> \t ERRORE: LE BANCHINE PER PORTO DEVE ESSERE UN NUMERO >= 1\n");
         exit(- 1);
     }
-    else if(SO_FILL <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: SO_FILL DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_FILL < 1000){
+        printf("[SISTEMA]\t -> \t ERRORE: SO_FILL DEVE ESSERE UN NUMERO >= 1000\n");
         exit(- 1);
     }
-    else if(SO_LOADSPEED <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DI SCARICO DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_LOADSPEED < 50){
+        printf("[SISTEMA]\t -> \t ERRORE: LA VELOCITA' DI SCARICO DEVE ESSERE UN NUMERO >= 50\n");
         exit(- 1);
     }
-    else if(SO_DAYS <= 0){
-        printf("[SISTEMA]\t -> \t ERRORE: SO_DAYS DEVE ESSERE UN NUMERO > 0\n");
+    else if(SO_DAYS < 5){
+        printf("[SISTEMA]\t -> \t ERRORE: SO_DAYS DEVE ESSERE UN NUMERO >= 5\n");
         exit(- 1);
     }
 }
 
-void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int giorno){
+void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int * portiSwell, int giorno){
     int carico = 0;
     int noCarico = 0;
     int operandoPorto = 0;
     int naviAbbattute = 0;
+    int naviBloccate = 0;
     int i;
 
     for(i = 0; i < SO_NAVI; i++){
-        noCarico += statusNavi[(i * 5) + 1];
-        carico += statusNavi[(i * 5) + 2];
-        operandoPorto += statusNavi[(i * 5) + 3];
-        naviAbbattute += statusNavi[(i * 5) + 4];
+        noCarico += statusNavi[(i * 6) + 1];
+        carico += statusNavi[(i * 6) + 2];
+        operandoPorto += statusNavi[(i * 6) + 3];
+        naviAbbattute += statusNavi[(i * 6) + 4];
+        naviBloccate += statusNavi[(i * 6) + 5];
     }
     printf("----------------------------------------------------------------------------------------------\n");
     printf("GIORNO\t->\t[%d]\n", giorno);
@@ -650,6 +669,12 @@ void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int gior
     printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
     printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n", operandoPorto);
     printf("NAVI CHE SONO STATE AFFONDATE\t->\t[%d]\n", naviAbbattute);
+    printf("NAVI BLOCCATE DA STORM\t->\t[%d]\n", naviBloccate);
+    printf("\n");
+    printf("PORTI BLOCCATI DA SWELL\n");
+    for(i = 0; i < giorno; i++){
+        printf("[PORTO\t%d]\n", portiSwell[i]);
+    }
     printf("\n");
     for(i = 0; i < SO_MERCI; i++){
         printf("Merce->%d presente in porto->%d\tpresente in nave->%d\tconsegnata in porto->%d\tscaduta in porto->%d\tscaduta in nave->%d\n", (i + 1), statusMerci[(i*5)], statusMerci[(i*5)+1], statusMerci[(i*5)+2], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
@@ -662,11 +687,12 @@ void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int gior
     
 }
 
-void finalReport(int * statusNavi, int * statusMerci, int * statusMerciTot, int * maxOfferte, int * maxRichieste, int * merci_consegnate, int * statusPorti){
+void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * maxRichieste, int * merci_consegnate, int * statusPorti, int * portiSwell){
     int carico = 0;
     int noCarico = 0;
     int operandoPorto = 0;
     int naviAbbattute = 0;
+    int naviBloccate = 0;
     int merciTot = 0;
     int i;
 
@@ -678,15 +704,22 @@ void finalReport(int * statusNavi, int * statusMerci, int * statusMerciTot, int 
         printf("[SISTEMA] -> TUTTE LE NAVI SONO STATE COLPITE DAL MAELSTROM\n");
     }
     for(i = 0; i < SO_NAVI; i++){
-        noCarico += statusNavi[(i * 5) + 1];
-        carico += statusNavi[(i * 5) + 2];
-        operandoPorto += statusNavi[(i * 5) + 3];
-        naviAbbattute += statusNavi[(i * 5) + 4];
+        noCarico += statusNavi[(i * 6) + 1];
+        carico += statusNavi[(i * 6) + 2];
+        operandoPorto += statusNavi[(i * 6) + 3];
+        naviAbbattute += statusNavi[(i * 6) + 4];
+        naviBloccate += statusNavi[(i * 6) + 5];
     }
     printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
     printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
     printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n", operandoPorto);
     printf("NAVI CHE SONO STATE AFFONDATE\t->\t[%d]\n", naviAbbattute);
+    printf("NAVI BLOCCATE DA STORM\t->\t[%d]\n", naviBloccate);
+    printf("\n");
+    printf("PORTI BLOCCATI DA SWELL\n");
+    for(i = 0; i < SO_DAYS; i++){
+        printf("[PORTO\t%d]\n", portiSwell[i]);
+    }
     printf("\n");
     for(i = 0; i < SO_MERCI; i++){
         merciTot = statusMerci[(i * 5)] + statusMerci[(i * 5) + 1] + statusMerci[(i * 5) + 2] +  statusMerci[(i * 5) + 3] + statusMerci[(i * 5) + 4];
