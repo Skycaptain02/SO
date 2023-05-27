@@ -41,7 +41,7 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;
     int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
-    int sem_config_id, sem_offerte_richieste_id;
+    int sem_config_id, sem_offerte_richieste_id, sem_opPorto_id;
     int perc_richieste, perc_offerte, errno;
     
     double * arr_pos;
@@ -76,10 +76,6 @@ int main(int argc, char * argv[]){
      * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
      * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
     */
-
-    for(i = 0; i < SO_MERCI; i++){
-        offerteTot[i] = 0;
-    }
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
     while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
@@ -177,6 +173,10 @@ int main(int argc, char * argv[]){
     semctl(sem_banchine_id, 0, SETVAL , numBanchine);
 
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
+
+    sem_opPorto_id =semget(getpid(), 2, 0600 | IPC_CREAT);
+    semctl(sem_opPorto_id, 0, SETVAL, 1);
+    semctl(sem_opPorto_id, 1, SETVAL, 1);
     /*Fine allocazione semafori*/
 
     /*Allocazione coda di messaggi*/
@@ -216,7 +216,6 @@ int main(int argc, char * argv[]){
                     Operation.type = (unsigned int)Operation.pid_nave;
                     Operation.operation = 0;
                     msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                    /*printf("Successo [%d] -> MANDO MESSAGGIO, op = %d, pid nave = %d\n", getpid(), Operation.operation, (unsigned int)Operation.pid_nave);*/
                 }
                 else{
                     Operation.operation = -1;
@@ -263,14 +262,10 @@ int main(int argc, char * argv[]){
      * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione shared memory e liste offerte e richieste
     */
     
-    /*
-    if(listaRichieste.top != NULL){
-        listFree(&listaRichieste);
-    }
-    if(listaOfferte.top != NULL){
-        listFree(&listaOfferte);
-    }
-    */
+    
+    listFree(&listaRichieste);
+    listFree(&listaOfferte);
+
     shmdt(arr_pos);
     shmdt(tipi_merce);
     shmdt(matr_richieste);
@@ -405,11 +400,6 @@ void dailyGen(){
     }
 
     statusPorti[(i * 6) + 1] = listLength(&listaOfferte);
-    /*printf("OFFERTE %d\n", getpid());
-    listPrint(&listaOfferte);
-    printf("RICHIESTE %d\n", getpid());
-    listPrint(&listaRichieste);*/
-    
 }
 
 void swellPause(){
@@ -438,10 +428,7 @@ void swellPause(){
         req.tv_sec = (time_t)(modulo);
         req.tv_nsec = (long)(nsec);
     }
-
-    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
-
+    
     nanosleep(&req, &rem);
 
     sigemptyset(&maskBlock);

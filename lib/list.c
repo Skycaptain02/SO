@@ -91,13 +91,14 @@ void listRemoveToLeft(List * list, int * rem_life, int elem_type){
 
 void listFree(List * list){
     Node * head = list->top;
-    Node * temp = head->next;
-    free(head);
+    Node * next;
+
     while(head != NULL){
-        temp = temp->next;
-        free(temp);
+        next = head->next;
+        free(head);
+        head = next;
     }
-    list->top = NULL;
+    list->top = head;
 }
 
 int listLength(List * list){

@@ -36,6 +36,9 @@
   ],
   "C_Cpp_Runner.useAddressSanitizer": false,
   "files.associations": {
-    "math.h": "c"
+    "math.h": "c",
+    "time.h": "c",
+    "unistd.h": "c",
+    "errno.h": "c"
   }
 }

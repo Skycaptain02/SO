@@ -20,6 +20,6 @@ void listInsert(List * list, Merce elem);
 void listPrint(List * list);
 void listSubtract(List * list, int *, int *, int);
 void listRemoveToLeft(List * list, int *, int);
-void freeList(List * list);
+void listFree(List * list);
 
 #endif
