@@ -32,20 +32,20 @@ int main(int argc, char * argv[]){
     Merce * tipi_merci;
 
     sigset_t mask_block;
-
-
+    
     struct sigaction sa;
     int i, j, k, z, x, y, status, errno;
     
 
     
     int sem_config_id = 0, sem_offerte_richieste_id = 0;
-    int * porti_random, * random_index;
+    int * harborIndexNoRepeat, * allHarborIndex, * remeaningHarbor;
 
     pid_t * pidNavi, * pidPorti, pid_meteo;
    
     int porto_scelto; 
     int flag = 1;
+    int flagDecision = 0;
     char argv_buffer[50];
 
     char * args_navi[]  = {"navi.c", NULL};
@@ -295,6 +295,9 @@ int main(int argc, char * argv[]){
      * All'inizio del ciclo while vengono scelti un numero casuale si porti i quali dovranno generare risorse all'interno del loro magazzino
      * Tali porti verranno scelti a caso, non ripetuti, in modo che non si verichi un possibile merge di segnali
      * I porti che giorno N sono stati scelti riceveranno dal master un segnale SIGUSR2 il quale comunicherà ai porti di creare le proprie Merce
+     * allHarborIndex = array che contiene tutti i numeri che vanno da 0 a SO_PORTI - 1
+     * harborIndexNoRepeat = array che contiene indici casuali non ripetuti per la selezione dei porti ogni giorno
+     * remeinignHarbor = array che contiene tutti i restanti indici dei porti non scelti da harborIndexNoRepeat
     */
 
     i = 0;
@@ -304,32 +307,42 @@ int main(int argc, char * argv[]){
     while(i != SO_DAYS && flagEndMaterials && !flagEndMaelstrom){
         checkEndOffers = 0;
         checkEndRequests = 0;
+
         * porti_selezionati = (rand() % (SO_PORTI - 3)) + 4;
         porto_scelto = rand() % SO_PORTI;
         if(i == 0){
-            random_index = malloc(sizeof(int) * SO_PORTI);
-            porti_random = malloc(sizeof(int) * (* porti_selezionati));
+            allHarborIndex = malloc(sizeof(int) * SO_PORTI);
+            harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
+            if(SO_PORTI > 4){
+                remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
+            }
         }
         else{
-           porti_random = malloc(sizeof(int) * (* porti_selezionati));
+            if(SO_PORTI > 4){
+                remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
+            }
+            harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
         }
+
 
         j = 0;
         while(j != SO_PORTI){
-            random_index[j] = j;
+            allHarborIndex[j] = j;
             if(k < * porti_selezionati){
-                porti_random[k] = -1;
+                harborIndexNoRepeat[k] = -1;
                 k++;
             }
             j++;
         }
+        j = 0;
+        k = 0;
 
         for(k = 0; k < * porti_selezionati; k++){
             flag = 1;
             while(flag){
-                if(random_index[porto_scelto] != -1 && porti_random[k] == -1){
-                    porti_random[k] = random_index[porto_scelto];
-                    random_index[porto_scelto] = -1;
+                if(allHarborIndex[porto_scelto] != -1 && harborIndexNoRepeat[k] == -1){
+                    harborIndexNoRepeat[k] = allHarborIndex[porto_scelto];
+                    allHarborIndex[porto_scelto] = -1;
                     flag = 0;
                 }
                 else{
@@ -337,9 +350,42 @@ int main(int argc, char * argv[]){
                 }
             }
         }
+
+        k = 0;
+        z = 0;
+
+        /*Comparo k con harborIndexNoRepeat se non trovo congruenza ho trovato l'indice da inserire in remeinign harbor*/
+        if(SO_PORTI > 4){
+            for(k = 0; k < SO_PORTI; k++){
+                flagDecision = 0;
+                for(j = 0; j < * porti_selezionati; j++){
+                    if(k == harborIndexNoRepeat[j]){
+                        flagDecision = 1;
+                        break;
+                    }
+                }
+                if(!flagDecision){
+                    remeaningHarbor[z] = k;
+                    printf("%d\n", k);
+                    z++;
+                }
+            }
+        }
+        
+        z = 0;
+        j = 0;
+        k = 0;
+
         i++;
+
+        if(SO_PORTI != 4){
+            for(j = 0; j < (SO_PORTI - * porti_selezionati); j++){
+                kill(pidPorti[remeaningHarbor[j]], SIGTERM);
+            }
+        }
+        j = 0;
         for(j = 0; j < * porti_selezionati; j++){
-            kill(pidPorti[porti_random[j]], SIGUSR1);
+            kill(pidPorti[harborIndexNoRepeat[j]], SIGUSR1);
         }
         kill(pid_meteo, SIGUSR1);
 
@@ -360,19 +406,15 @@ int main(int argc, char * argv[]){
             flagEndMaterials = 0;
         }
         
-        free(porti_random);
-        
+        free(harborIndexNoRepeat);
+        if(SO_PORTI != 4){
+            free(remeaningHarbor);
+        }
     }
-    /*
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Merce-> %d\tconsegnata: %d\tvolte\n", i+1, merci_consegnate[i]);
-    }
-    */
     
     /**
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
     */
-    
     
     endSimulation(shmPidPorti, shmPidNavi, pid_meteo);
 
@@ -417,6 +459,7 @@ int main(int argc, char * argv[]){
 
     free(pidNavi);
     free(pidPorti);
+    free(allHarborIndex);
 
     printf("[SISTEMA] -> SIMULAZIONE TERMINATA\n");
 

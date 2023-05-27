@@ -28,6 +28,13 @@ void handler_start(int signal){
         case SIGUSR2:
             swellPause();
         break;
+        case SIGTERM:
+            if(listaOfferte.top != NULL){
+                listSubtract(&listaOfferte, qta_merci_scadute, statusMerci, 1);
+                /*La lista delle richieste scade? */
+                /*listSubtract(&listaRichieste, qta_merci_scadute);*/
+            }
+        break;
         default:
         break;
     }
@@ -60,6 +67,7 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
 
     listCreate(&listaRichieste);
@@ -259,9 +267,8 @@ int main(int argc, char * argv[]){
     }
     
     /**
-     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione shared memory e liste offerte e richieste
+     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione delle shared memory, liste e malloc
     */
-    
     
     listFree(&listaRichieste);
     listFree(&listaOfferte);
@@ -374,7 +381,7 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
             }
         }
         else{
-            if(richiesteTot[i] > maxRichieste[(i*2)+1]){
+            if(richiesteTot[i] > maxRichieste[(i * 2) + 1]){
                 maxRichieste[i * 2] = getpid();
                 maxRichieste[(i * 2) + 1] = richiesteTot[i];
             }
@@ -384,14 +391,22 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
    
 }
 
+/**
+ * Ogni giorno il porto, se scelto,  riceve un segnale dal master il quale gli comomunica che nella giornata attuale tale porto deve
+ * attivare le procedure di generazione delle richieste e delle offerte all'interno delle proprie liste
+ * Offerte e richieste vengono generate a percentuale randomica ogni giorno, il porto "decide" che percentuale assegnare a entrambe
+*/
 
 void dailyGen(){
     int perc_richieste, i = 0;
+    perc_richieste = (rand() % 21) + 40;
+
     if(listaOfferte.top != NULL){
         listSubtract(&listaOfferte, qta_merci_scadute, statusMerci, 1);
+        /*La lista delle richieste scade? */
         /*listSubtract(&listaRichieste, qta_merci_scadute);*/
     }
-    perc_richieste = (rand() % 21) + 40;
+
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
 
@@ -401,6 +416,10 @@ void dailyGen(){
 
     statusPorti[(i * 6) + 1] = listLength(&listaOfferte);
 }
+
+/**
+ * Funzione che entra in esecuzione solo se il porto è stato bersagliato da una mareggiata
+*/
 
 void swellPause(){
     struct timespec req, rem;

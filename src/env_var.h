@@ -19,7 +19,7 @@
 
 
 #define SO_NAVI 1000
-#define SO_PORTI 5
+#define SO_PORTI 10
 #define SO_MERCI 5
 #define SO_SIZE 1
 #define SO_MIN_VITA 1
