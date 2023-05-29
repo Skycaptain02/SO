@@ -285,6 +285,11 @@ int main(int argc, char * argv[]){
     shmdt(maxRichieste);
     shmdt(statusPorti);
 
+    semop(sem_banchine_id, NULL, IPC_RMID);
+    semop(sem_opPorto_id, NULL, IPC_RMID);
+
+    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
+
     free(tipi_richieste);
     free(qta_merci_scadute);
     free(rem_life);
@@ -410,11 +415,7 @@ void dailyGen(){
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
 
-    while(statusPorti[i * 6] != getpid()){
-        i++;
-    }
-
-    statusPorti[(i * 6) + 1] = listLength(&listaOfferte);
+    statusPorti[(rigaStatus * 6) + 1] = listLength(&listaOfferte);
 }
 
 /**

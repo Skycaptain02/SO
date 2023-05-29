@@ -17,7 +17,7 @@ void handler(int signal){
         printf("TUTTE NAV MORT\n");
             flagEndMaelstrom = 1;
         break;
-    default:
+        default:
         break;
     }
 }
@@ -313,12 +313,12 @@ int main(int argc, char * argv[]){
         if(i == 0){
             allHarborIndex = malloc(sizeof(int) * SO_PORTI);
             harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
-            if(SO_PORTI > 4){
+            if(SO_PORTI > 4 &&  * porti_selezionati != SO_PORTI){
                 remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
             }
         }
         else{
-            if(SO_PORTI > 4){
+            if(SO_PORTI > 4 && * porti_selezionati != SO_PORTI){
                 remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
             }
             harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
@@ -366,7 +366,6 @@ int main(int argc, char * argv[]){
                 }
                 if(!flagDecision){
                     remeaningHarbor[z] = k;
-                    printf("%d\n", k);
                     z++;
                 }
             }
@@ -407,7 +406,7 @@ int main(int argc, char * argv[]){
         }
         
         free(harborIndexNoRepeat);
-        if(SO_PORTI != 4){
+        if(SO_PORTI > 4 && * porti_selezionati != SO_PORTI){
             free(remeaningHarbor);
         }
     }
@@ -439,7 +438,6 @@ int main(int argc, char * argv[]){
     shmdt(statusPorti);
     shmdt(portiSwell);
 
-
     shmctl(shm_merci_id, IPC_RMID, NULL);
     shmctl(shm_richieste_id, IPC_RMID, NULL);
     shmctl(shm_offerte_id, IPC_RMID, NULL);
@@ -457,6 +455,9 @@ int main(int argc, char * argv[]){
     shmctl(shm_statusPorti_id, IPC_RMID, NULL);
     shmctl(shm_portiSwell_id, IPC_RMID, NULL);
 
+    semop(sem_config_id, NULL, IPC_RMID);
+    semop(sem_offerte_richieste_id, NULL, IPC_RMID);
+    
     free(pidNavi);
     free(pidPorti);
     free(allHarborIndex);
@@ -774,8 +775,6 @@ void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * ma
         printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", statusPorti[(i * 6)], statusPorti[(i * 6) + 1], statusPorti[(i * 6) + 2], statusPorti[(i * 6) + 3], statusPorti[(i * 6) + 4], statusPorti[(i * 6) + 5]);
     }
     printf("----------------------------------------------------------------------------------------------\n");
-
-    
 }
 
 void endSimulation (pid_t * pidPorti, pid_t * pidNavi, pid_t pidMeteo){

@@ -33,16 +33,5 @@ int sem_release(int sem_id, int sem_num){
     sem_op.sem_op = 1;
     return semop(sem_id, &sem_op, 1);
 }
-
-int sem_remove(int sem_id){
-    int ret_value;
-    ret_value = semop(sem_id, NULL, IPC_RMID);
-    if(!errno){
-        return ret_value;
-    }
-    else{
-        printf("Error in setting semaphore value, error: %s\n", strerror(errno));
-    }
-}
 /*Fine Sez Semafori*/
 

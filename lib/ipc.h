@@ -19,23 +19,7 @@ int sem_reserve(int sem_id, int sem_num);
 
 int sem_release(int sem_id, int sem_num);
 
-int sem_remove(int sem_id);
-
 /*Fine Sez Semafori*/
-
-/*Sez Message Queue*/
-
-struct msqid_ds{
-	int a;
-};
-
-int msg_send(int msg_id, const void *msg_p, size_t msg_size, int msg_flags);
-
-int msg_receive(int msg_id, const void *msg_p, size_t msg_size, long msg_type, int msg_flags);
-
-int msg_control(int msg_id, int msg_command, struct msqid_ds *msg_buf);
-
-/*Fine Sez Message Queue*/
 
 
 

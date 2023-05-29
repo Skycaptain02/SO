@@ -3,8 +3,6 @@
 #include "../lib/list.h"
 #include <math.h>
 
-
-
 void travel(int *, double);
 struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
 int getRow(int *, double *, int );
@@ -83,7 +81,7 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR2, &sa, NULL);
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
-    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
+    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0); /* ATTENDIAMO CHE I PORTI FINISCANO DI GENERARE LA PRIMA VOLTA*/
 
     shm_pos_porti_id = shmget(getppid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
     pos_porti = shmat(shm_pos_porti_id, NULL, 0);  
@@ -206,7 +204,6 @@ int main(int argc, char * argv[]){
                             }
                         }
                         if(!flag_ctrl){
-                            
                             current_weight += tipi_merce[id_merce - 1].weight;
                             if(current_weight <= SO_CAPACITY){
                                 Operation.type = (unsigned int)pos_porti[harbor_des * 3];
@@ -248,6 +245,7 @@ int main(int argc, char * argv[]){
                 sigaddset(&maskBlock, SIGTERM);
                 sigaddset(&maskBlock, SIGUSR2);
                 sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
+                sem_opPorti_id = 0;
             }
         }
         if(!exit){
@@ -261,7 +259,6 @@ int main(int argc, char * argv[]){
             ship_pos_y = pos_porti[harbor_des * 3 + 2];
         }
     }
-    printf("SUCA\n");
 }
 
 void travel(int * statusNavi, double distanza){
