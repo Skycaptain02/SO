@@ -206,10 +206,7 @@ int main(int argc, char * argv[]){
                         if(!flag_ctrl){
                             current_weight += tipi_merce[id_merce - 1].weight;
                             if(current_weight <= SO_CAPACITY){
-                                Operation.type = (unsigned int)pos_porti[harbor_des * 3];
-                                Operation.operation = 2;
-                                Operation.extra = tipi_merce[id_merce - 1].type;
-                                Operation.pid_nave = getpid();
+                                Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 2, tipi_merce[id_merce - 1].type, getpid());
                                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
                                 msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
                                 if(msg_bytes >= 0 && Operation.operation == 3){
@@ -291,7 +288,6 @@ void travel(int * statusNavi, double distanza){
         statusNavi[(posStatus * 6) + 2] = 1;
         statusNavi[(posStatus * 6) + 3] = 0;
     }
-    
     while(req.tv_nsec != 0 || req.tv_sec != 0){
         if(nanosleep(&req, &rem) == -1){
             req.tv_nsec = rem.tv_nsec;

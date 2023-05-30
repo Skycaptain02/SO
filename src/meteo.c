@@ -115,8 +115,9 @@ void dailyDisaster(){
 
     /**
      * SIGUSR2 -> NAVE ATTENDE ATTENDE MENTRE VIAGGIA / PORTO ATTENDE
-     * SIGABRT -> NAVE ESPLODE
+     * SIGABRT -> MORTE DELLA NAVE
     */
+
     int pid_random;
     pid_random = rand() % SO_NAVI;
     while(pidNavi[pid_random] == -1){

@@ -216,51 +216,51 @@ int main(int argc, char * argv[]){
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
             switch (Operation.operation){
-            case 0:
-                if(semctl(sem_banchine_id, 0, GETVAL) > 0){
-                    sem_reserve(sem_banchine_id,0);
-                    statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
+                case 0:
+                    if(semctl(sem_banchine_id, 0, GETVAL) > 0){
+                        sem_reserve(sem_banchine_id,0);
+                        statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
+                        Operation.extra = 0;
+                        Operation.type = (unsigned int)Operation.pid_nave;
+                        Operation.operation = 0;
+                        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
+                    }
+                    else{
+                        Operation.operation = -1;
+                        Operation.type = (unsigned int)Operation.pid_nave;
+                        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);                              
+                    }
+                break;
+                
+                case 1:
+                    listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
+                    statusMerci[((Operation.extra - 1) * 5) + 2] += 1; /*Inserisco al porto*/
+                    statusMerci[((Operation.extra - 1) * 5) + 1] -= 1; /*Tolgo su nave*/
+                    Operation.type = (unsigned int)Operation.pid_nave;
                     Operation.extra = 0;
+                    Operation.operation = 1;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
+                    statusPorti[(rigaStatus * 6) + 2] += 1;
+                break;
+
+                case 2:
+                    Operation.operation = 3;
                     Operation.type = (unsigned int)Operation.pid_nave;
-                    Operation.operation = 0;
+                    listRemoveToLeft(&listaOfferte, rem_life, Operation.extra);
+                    statusMerci[((Operation.extra - 1) * 5)] -= 1;     /*Tolgo al porto*/
+                    statusMerci[((Operation.extra - 1) * 5) + 1] += 1; /*Inserisco su nave*/
+                    Operation.extra = * rem_life;
                     msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                }
-                else{
-                    Operation.operation = -1;
+                    statusPorti[(rigaStatus * 6) + 3] += 1;
+                break;
+
+                case 4:
+                    sem_release(sem_banchine_id, 0);
+                    statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
                     Operation.type = (unsigned int)Operation.pid_nave;
-                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);                              
-                }
-                break;
-            
-            case 1:
-                listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
-                statusMerci[((Operation.extra - 1) * 5) + 2] += 1; /*Inserisco al porto*/
-                statusMerci[((Operation.extra - 1) * 5) + 1] -= 1; /*Tolgo su nave*/
-                Operation.type = (unsigned int)Operation.pid_nave;
-                Operation.extra = 0;
-                Operation.operation = 1;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
-                statusPorti[(rigaStatus * 6) + 2] += 1;
-                break;
-
-            case 2:
-                Operation.operation = 3;
-                Operation.type = (unsigned int)Operation.pid_nave;
-                listRemoveToLeft(&listaOfferte, rem_life, Operation.extra);
-                statusMerci[((Operation.extra - 1) * 5)] -= 1;     /*Tolgo al porto*/
-                statusMerci[((Operation.extra - 1) * 5) + 1] += 1; /*Inserisco su nave*/
-                Operation.extra = * rem_life;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                statusPorti[(rigaStatus * 6) + 3] += 1;
-                break;
-
-            case 4:
-                sem_release(sem_banchine_id, 0);
-                statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
-                Operation.type = (unsigned int)Operation.pid_nave;
-                Operation.extra = 0;
-                Operation.operation = - 1;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
+                    Operation.extra = 0;
+                    Operation.operation = - 1;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
                 break;
             }
         }
