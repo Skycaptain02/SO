@@ -28,6 +28,13 @@ void handler_start(int signal){
         case SIGUSR2:
             swellPause();
         break;
+        case SIGTERM:
+            if(listaOfferte.top != NULL){
+                listSubtract(&listaOfferte, qta_merci_scadute, statusMerci, 1);
+                /*La lista delle richieste scade? */
+                /*listSubtract(&listaRichieste, qta_merci_scadute);*/
+            }
+        break;
         default:
         break;
     }
@@ -41,7 +48,7 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;
     int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
-    int sem_config_id, sem_offerte_richieste_id;
+    int sem_config_id, sem_offerte_richieste_id, sem_opPorto_id;
     int perc_richieste, perc_offerte, errno;
     
     double * arr_pos;
@@ -60,6 +67,7 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
 
     listCreate(&listaRichieste);
@@ -76,10 +84,6 @@ int main(int argc, char * argv[]){
      * La mappa e' stata configurata in modo che il centro di essa sia nelle coordinate x = 0; y = 0;
      * Come richiesto da consegna, i primi 4 porti sono collocati almeno in un lato della mappa, come posizione abbiamo scelte gli angoli del quadrato
     */
-
-    for(i = 0; i < SO_MERCI; i++){
-        offerteTot[i] = 0;
-    }
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
     while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
@@ -177,6 +181,10 @@ int main(int argc, char * argv[]){
     semctl(sem_banchine_id, 0, SETVAL , numBanchine);
 
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
+
+    sem_opPorto_id =semget(getpid(), 2, 0600 | IPC_CREAT);
+    semctl(sem_opPorto_id, 0, SETVAL, 1);
+    semctl(sem_opPorto_id, 1, SETVAL, 1);
     /*Fine allocazione semafori*/
 
     /*Allocazione coda di messaggi*/
@@ -208,69 +216,63 @@ int main(int argc, char * argv[]){
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
             switch (Operation.operation){
-            case 0:
-                if(semctl(sem_banchine_id, 0, GETVAL) > 0){
-                    sem_reserve(sem_banchine_id,0);
-                    statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
+                case 0:
+                    if(semctl(sem_banchine_id, 0, GETVAL) > 0){
+                        sem_reserve(sem_banchine_id,0);
+                        statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
+                        Operation.extra = 0;
+                        Operation.type = (unsigned int)Operation.pid_nave;
+                        Operation.operation = 0;
+                        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
+                    }
+                    else{
+                        Operation.operation = -1;
+                        Operation.type = (unsigned int)Operation.pid_nave;
+                        msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);                              
+                    }
+                break;
+                
+                case 1:
+                    listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
+                    statusMerci[((Operation.extra - 1) * 5) + 2] += 1; /*Inserisco al porto*/
+                    statusMerci[((Operation.extra - 1) * 5) + 1] -= 1; /*Tolgo su nave*/
+                    Operation.type = (unsigned int)Operation.pid_nave;
                     Operation.extra = 0;
+                    Operation.operation = 1;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
+                    statusPorti[(rigaStatus * 6) + 2] += 1;
+                break;
+
+                case 2:
+                    Operation.operation = 3;
                     Operation.type = (unsigned int)Operation.pid_nave;
-                    Operation.operation = 0;
+                    listRemoveToLeft(&listaOfferte, rem_life, Operation.extra);
+                    statusMerci[((Operation.extra - 1) * 5)] -= 1;     /*Tolgo al porto*/
+                    statusMerci[((Operation.extra - 1) * 5) + 1] += 1; /*Inserisco su nave*/
+                    Operation.extra = * rem_life;
                     msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                    /*printf("Successo [%d] -> MANDO MESSAGGIO, op = %d, pid nave = %d\n", getpid(), Operation.operation, (unsigned int)Operation.pid_nave);*/
-                }
-                else{
-                    Operation.operation = -1;
+                    statusPorti[(rigaStatus * 6) + 3] += 1;
+                break;
+
+                case 4:
+                    sem_release(sem_banchine_id, 0);
+                    statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
                     Operation.type = (unsigned int)Operation.pid_nave;
-                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);                              
-                }
-                break;
-            
-            case 1:
-                listRemoveToLeft(&listaRichieste, NULL, Operation.extra);
-                statusMerci[((Operation.extra - 1) * 5) + 2] += 1; /*Inserisco al porto*/
-                statusMerci[((Operation.extra - 1) * 5) + 1] -= 1; /*Tolgo su nave*/
-                Operation.type = (unsigned int)Operation.pid_nave;
-                Operation.extra = 0;
-                Operation.operation = 1;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
-                statusPorti[(rigaStatus * 6) + 2] += 1;
-                break;
-
-            case 2:
-                Operation.operation = 3;
-                Operation.type = (unsigned int)Operation.pid_nave;
-                listRemoveToLeft(&listaOfferte, rem_life, Operation.extra);
-                statusMerci[((Operation.extra - 1) * 5)] -= 1;     /*Tolgo al porto*/
-                statusMerci[((Operation.extra - 1) * 5) + 1] += 1; /*Inserisco su nave*/
-                Operation.extra = * rem_life;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2  + sizeof(pid_t), 0);
-                statusPorti[(rigaStatus * 6) + 3] += 1;
-                break;
-
-            case 4:
-                sem_release(sem_banchine_id, 0);
-                statusPorti[(rigaStatus * 6) + 4] = semctl(sem_banchine_id, 0, GETVAL);
-                Operation.type = (unsigned int)Operation.pid_nave;
-                Operation.extra = 0;
-                Operation.operation = - 1;
-                msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
+                    Operation.extra = 0;
+                    Operation.operation = - 1;
+                    msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
                 break;
             }
         }
     }
     
     /**
-     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione shared memory e liste offerte e richieste
+     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione delle shared memory, liste e malloc
     */
     
-    /*
-    if(listaRichieste.top != NULL){
-        listFree(&listaRichieste);
-    }
-    if(listaOfferte.top != NULL){
-        listFree(&listaOfferte);
-    }
-    */
+    listFree(&listaRichieste);
+    listFree(&listaOfferte);
+
     shmdt(arr_pos);
     shmdt(tipi_merce);
     shmdt(matr_richieste);
@@ -282,6 +284,11 @@ int main(int argc, char * argv[]){
     shmdt(maxOfferte);
     shmdt(maxRichieste);
     shmdt(statusPorti);
+
+    semop(sem_banchine_id, NULL, IPC_RMID);
+    semop(sem_opPorto_id, NULL, IPC_RMID);
+
+    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
 
     free(tipi_richieste);
     free(qta_merci_scadute);
@@ -379,7 +386,7 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
             }
         }
         else{
-            if(richiesteTot[i] > maxRichieste[(i*2)+1]){
+            if(richiesteTot[i] > maxRichieste[(i * 2) + 1]){
                 maxRichieste[i * 2] = getpid();
                 maxRichieste[(i * 2) + 1] = richiesteTot[i];
             }
@@ -389,28 +396,31 @@ void request_offer_gen(Merce * tipi_merce, int * porti_selezionati, int * matric
    
 }
 
+/**
+ * Ogni giorno il porto, se scelto,  riceve un segnale dal master il quale gli comomunica che nella giornata attuale tale porto deve
+ * attivare le procedure di generazione delle richieste e delle offerte all'interno delle proprie liste
+ * Offerte e richieste vengono generate a percentuale randomica ogni giorno, il porto "decide" che percentuale assegnare a entrambe
+*/
 
 void dailyGen(){
     int perc_richieste, i = 0;
+    perc_richieste = (rand() % 21) + 40;
+
     if(listaOfferte.top != NULL){
         listSubtract(&listaOfferte, qta_merci_scadute, statusMerci, 1);
+        /*La lista delle richieste scade? */
         /*listSubtract(&listaRichieste, qta_merci_scadute);*/
     }
-    perc_richieste = (rand() % 21) + 40;
+
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
 
-    while(statusPorti[i * 6] != getpid()){
-        i++;
-    }
-
-    statusPorti[(i * 6) + 1] = listLength(&listaOfferte);
-    /*printf("OFFERTE %d\n", getpid());
-    listPrint(&listaOfferte);
-    printf("RICHIESTE %d\n", getpid());
-    listPrint(&listaRichieste);*/
-    
+    statusPorti[(rigaStatus * 6) + 1] = listLength(&listaOfferte);
 }
+
+/**
+ * Funzione che entra in esecuzione solo se il porto è stato bersagliato da una mareggiata
+*/
 
 void swellPause(){
     struct timespec req, rem;
@@ -438,10 +448,7 @@ void swellPause(){
         req.tv_sec = (time_t)(modulo);
         req.tv_nsec = (long)(nsec);
     }
-
-    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
-
+    
     nanosleep(&req, &rem);
 
     sigemptyset(&maskBlock);

@@ -3,8 +3,6 @@
 #include "../lib/list.h"
 #include <math.h>
 
-
-
 void travel(int *, double);
 struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
 int getRow(int *, double *, int );
@@ -14,12 +12,12 @@ void funcEnd(int);
 void stormPause();
 
 
-List stiva;
+List stiva , temp_stiva;
 int flag_end = 0, flag_day = 0, current_weight = 0;
 int * arr_richieste_global, * arr_offerte_global, * merci_consegnate, * statusNavi, * statusMerci, * merci_scadute;
 Merce * tipi_merce;
 double * pos_porti;
-int posStatus = 0;
+int posStatus = 0, lastHarbor = 0, flagSemCarico = 0, flagSemScarico = 0;
 
 void handler_start(int signal){
     switch(signal){
@@ -41,32 +39,31 @@ void handler_start(int signal){
 }
 
 int main(int argc, char * argv[]){
-   
-    int errno;
+    
+    
+    sigset_t maskBlock;
+    struct sigaction sa;
+    struct MsgOp Operation;
+    Merce temp;
+    int * richieste_local, * offerte_local;
     
     double ship_pos_x, dist_parz_x;
     double ship_pos_y, dist_parz_y;
     double distanza;
 
     int harbor_des;
-    int sem_config_id, sem_offerte_richieste_id, shm_merci_id;
-
-    int msg_porti_navi_id;
-    int msg_bytes;
+    int sem_config_id, sem_offerte_richieste_id, sem_opPorti_id;
+    int msg_porti_navi_id, msg_bytes;
     int riga_matrice = - 1;
     int harbor_des_old;
 
-    int shm_pos_porti_id, shm_richieste_local_id, shm_offerte_local_id, shm_merci_consegnate_id, shm_statusNavi_id, shm_statusMerci_id;
-    int * richieste_local, * offerte_local;
-    struct sigaction sa;
-    struct MsgOp Operation, Info_vita;
+    int shm_pos_porti_id, shm_merci_id, shm_richieste_local_id, shm_offerte_local_id, shm_merci_consegnate_id, shm_statusNavi_id, shm_statusMerci_id;
     int i, merce_rand, id_merce = 1;
     int flag_end_carico = 1, flag_end_scarico = 1, flag_ctrl = 1;
     int merci_scaricate = 0, merci_caricate = 0;
     int exit = 0;
-    Merce temp;
-    List temp_stiva;
-
+    int ernno;
+   
     listCreate(&stiva);
     
     srand(getpid());
@@ -84,7 +81,7 @@ int main(int argc, char * argv[]){
     sigaction(SIGUSR2, &sa, NULL);
 
     sem_offerte_richieste_id = semget(getppid() + 1, 1, 0600 | IPC_CREAT);
-    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0);
+    while(semctl(sem_offerte_richieste_id, 0, GETVAL) != 0); /* ATTENDIAMO CHE I PORTI FINISCANO DI GENERARE LA PRIMA VOLTA*/
 
     shm_pos_porti_id = shmget(getppid() + 4, sizeof(double) * (SO_PORTI * 3), 0600 | IPC_CREAT);
     pos_porti = shmat(shm_pos_porti_id, NULL, 0);  
@@ -135,24 +132,34 @@ int main(int argc, char * argv[]){
         msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
         if(msg_bytes >= 0){
             if(Operation.operation == 0){
+                lastHarbor = (unsigned int)pos_porti[harbor_des * 3];
+                sigemptyset(&maskBlock);
+                sigaddset(&maskBlock, SIGTERM);
+                sigaddset(&maskBlock, SIGUSR2);
+                sigprocmask(SIG_BLOCK, &maskBlock, NULL);
+                sem_opPorti_id = semget(lastHarbor, 2, 0600 | IPC_CREAT);
                 if(current_weight > 0){           
                     riga_matrice = getRow(arr_richieste_global, pos_porti, harbor_des);
                     flag_end_scarico = 1;
                     temp_stiva.top = stiva.top;
                     while(temp_stiva.top != NULL){
+                        sem_reserve(sem_opPorti_id, 0);       
+                        flagSemScarico = 1;
                         if(arr_richieste_global[riga_matrice * (SO_MERCI + 1) + temp_stiva.top->elem.type] != 0){
                             arr_richieste_global[riga_matrice * (SO_MERCI + 1) + temp_stiva.top->elem.type] -= 1;
+                            sem_release(sem_opPorti_id, 0);
+                            flagSemScarico = 0;
                             Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 1, temp_stiva.top->elem.type, getpid());
                             msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t));
                             msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
-                            if(msg_bytes >= 0){
-                                /*printf("MERCE SCARICATA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp_stiva.top->elem.type, temp_stiva.top->elem.life, temp_stiva.top->elem.weight);*/
-                            }
                             current_weight -= temp_stiva.top->elem.weight;
                             listRemoveToLeft(&stiva, NULL, temp_stiva.top->elem.type);
                             merci_consegnate[temp_stiva.top->elem.type - 1] += 1;
                             merci_scaricate += 1;
                             
+                        }else{
+                            sem_release(sem_opPorti_id, 0);
+                            flagSemScarico = 0;
                         }
                         temp_stiva.top = temp_stiva.top->next;
                     }
@@ -168,13 +175,22 @@ int main(int argc, char * argv[]){
                         flag_ctrl = 1;
                         if(SO_MERCI != 1){
                             for(i = id_merce; current_weight <= SO_CAPACITY && flag_ctrl == 1; i++){
-                                if(i >= SO_MERCI+1){
+                                if(i >= SO_MERCI + 1){
                                     id_merce = 1;
                                     i = 1;
                                 }
+                                sem_reserve(sem_opPorti_id, 1);
+                                flagSemCarico = 1;
                                 if(arr_offerte_global[riga_matrice * (SO_MERCI + 1) + i] != 0){
+                                    arr_offerte_global[riga_matrice * (SO_MERCI + 1) + id_merce] -= 1;
+                                    sem_release(sem_opPorti_id, 1);
+                                    flagSemCarico = 0;
                                     flag_ctrl = 0;
                                     id_merce = i;
+                                }
+                                else{
+                                    sem_release(sem_opPorti_id, 1);
+                                    flagSemCarico = 0;
                                 }
                                 
                             }
@@ -188,19 +204,14 @@ int main(int argc, char * argv[]){
                             }
                         }
                         if(!flag_ctrl){
-                            arr_offerte_global[riga_matrice * (SO_MERCI + 1) + id_merce] -= 1;
                             current_weight += tipi_merce[id_merce - 1].weight;
                             if(current_weight <= SO_CAPACITY){
-                                Operation.type = (unsigned int)pos_porti[harbor_des * 3];
-                                Operation.operation = 2;
-                                Operation.extra = tipi_merce[id_merce - 1].type;
-                                Operation.pid_nave = getpid();
+                                Operation = genMessaggio((unsigned int)pos_porti[harbor_des * 3], 2, tipi_merce[id_merce - 1].type, getpid());
                                 msgsnd(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), 0);
                                 msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
                                 if(msg_bytes >= 0 && Operation.operation == 3){
                                     temp = tipi_merce[id_merce - 1];
                                     temp.life = Operation.extra;
-                                    /*printf("MERCE INSERITA [%d]: TIPO: %d, VITA: %d, PESO: %d\n", getpid(), temp.type, temp.life, temp.weight);*/
                                     listInsert(&stiva, temp);
                                     merci_caricate += 1;
                                 }
@@ -226,6 +237,12 @@ int main(int argc, char * argv[]){
                     msg_bytes = msgrcv(msg_porti_navi_id, &Operation, sizeof(int) * 2 + sizeof(pid_t), getpid(), 0);
                     riga_matrice = - 1;
                 } 
+
+                sigemptyset(&maskBlock);
+                sigaddset(&maskBlock, SIGTERM);
+                sigaddset(&maskBlock, SIGUSR2);
+                sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
+                sem_opPorti_id = 0;
             }
         }
         if(!exit){
@@ -242,7 +259,6 @@ int main(int argc, char * argv[]){
 }
 
 void travel(int * statusNavi, double distanza){
-    sigset_t mask_block, mask_unblock;
     struct timespec req, rem;
     int modulo; 
     int i = 0;
@@ -272,9 +288,6 @@ void travel(int * statusNavi, double distanza){
         statusNavi[(posStatus * 6) + 2] = 1;
         statusNavi[(posStatus * 6) + 3] = 0;
     }
-    /*printf("[PID %d] DEVO ASPETTARE -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] DEVO ASPETTARE -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
-
     while(req.tv_nsec != 0 || req.tv_sec != 0){
         if(nanosleep(&req, &rem) == -1){
             req.tv_nsec = rem.tv_nsec;
@@ -298,14 +311,8 @@ int harborOperations(int * statusNavi, int quantity){
     int i = 0;
     int exit = 0;
     double nsec, waitTime;
-    sigset_t maskBlock;
     rem.tv_nsec = 0;
     rem.tv_sec = 0;
-
-    sigemptyset(&maskBlock);
-    sigaddset(&maskBlock, SIGTERM);
-    sigaddset(&maskBlock, SIGUSR2);
-    sigprocmask(SIG_BLOCK, &maskBlock, NULL);
 
     statusNavi[(posStatus * 6) + 1] = 0;
     statusNavi[(posStatus * 6) + 2] = 0;
@@ -317,22 +324,12 @@ int harborOperations(int * statusNavi, int quantity){
     req.tv_sec = (time_t)(modulo);
     req.tv_nsec = (long)(nsec);
 
-    
-    
-
-    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
-
     nanosleep(&req, &rem);
     if(rem.tv_nsec != 0 || rem.tv_sec != 0){
         exit = 1;
         flag_end = 1;
     }
     
-    sigemptyset(&maskBlock);
-    sigaddset(&maskBlock, SIGTERM);
-    sigaddset(&maskBlock, SIGUSR2);
-    sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
     return exit;
 }
 
@@ -362,7 +359,7 @@ double calcoloDistanza(int harbor_des, double * pos_porti, int ship_pos_x, int s
 }
 
 void funcEnd(int flag){
-    int i;
+    int i, id_opPorti_id;
 
     if(flag){
         statusNavi[(posStatus * 6) + 1] = 0;
@@ -370,6 +367,16 @@ void funcEnd(int flag){
         statusNavi[(posStatus * 6) + 3] = 0;
     }
 
+    if(!flag){
+        id_opPorti_id = semget(lastHarbor, 2, 0600 | IPC_CREAT);
+        if(flagSemScarico){
+            sem_release(id_opPorti_id, 0);
+        }
+        if(flagSemCarico){
+            sem_release(id_opPorti_id, 1);
+        }
+    }
+    
     shmdt(tipi_merce);
     shmdt(pos_porti);
     shmdt(merci_consegnate);
@@ -379,6 +386,10 @@ void funcEnd(int flag){
     shmdt(statusMerci);
 
     free(merci_scadute);
+
+    listFree(&stiva);
+    listFree(&temp_stiva);
+
     exit(0);
 }
 
@@ -408,9 +419,6 @@ void stormPause(){
         req.tv_sec = (time_t)(modulo);
         req.tv_nsec = (long)(nsec);
     }
-
-    /*printf("[PID %d] TEMPO OPERAZIONI -> %ld SECONDI \n", getpid(), req.tv_sec);
-    printf("[PID %d] TEMPO OPERAZIONI -> %ld N_SECONDI \n", getpid(), req.tv_nsec);*/
 
     nanosleep(&req, &rem);
 

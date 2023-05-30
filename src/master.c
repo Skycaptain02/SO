@@ -4,20 +4,20 @@
 int flagEndMaelstrom = 0;
 int checkEndOffers = 0, checkEndRequests = 0, flagEndMaterials = 1;
 
-void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offerte, int print);
-void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pidPorti, int num_merci, int print);
+void gen_richiesta_offerta(int *, int *, int * , int);
+void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI + 1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * , int , int);
 void check_inputs();
 void dailyPrint(int *, int *, int *, int *, int);
-void finalReport(int *, int *, int *, int *, int *, int *, int *);
+void finalReport(int *, int *, int *, int *, int *, int *, int *, int);
 void endSimulation(pid_t *, pid_t *, pid_t);
 
 void handler(int signal){
     switch (signal){
         case SIGABRT:
-        printf("TUTTE NAV MORT\n");
+         printf("[SISTEMA] -> TUTTE LE NAVI SONO MORTE\n");
             flagEndMaelstrom = 1;
         break;
-    default:
+        default:
         break;
     }
 }
@@ -32,20 +32,20 @@ int main(int argc, char * argv[]){
     Merce * tipi_merci;
 
     sigset_t mask_block;
-
-
+    
     struct sigaction sa;
     int i, j, k, z, x, y, status, errno;
     
 
     
     int sem_config_id = 0, sem_offerte_richieste_id = 0;
-    int * porti_random, * random_index;
+    int * harborIndexNoRepeat, * allHarborIndex, * remeaningHarbor;
 
     pid_t * pidNavi, * pidPorti, pid_meteo;
    
     int porto_scelto; 
     int flag = 1;
+    int flagDecision = 0;
     char argv_buffer[50];
 
     char * args_navi[]  = {"navi.c", NULL};
@@ -80,8 +80,8 @@ int main(int argc, char * argv[]){
      * parend pid + 3: matrice indicante quali offerte possono essere richieste da ciascun porto
      * parent pid + 4: posizione porti
      * parent pid + 5: gestione generazione offerte e richieste dai porti
-     * parent pid + 6: matrice di tutte le Merce richieste da tutti i porti
-     * parent pid + 7: matrice di tutte le Merce offerte da tutti i poorti
+     * parent pid + 6: matrice di tutte le merci richieste da tutti i porti
+     * parent pid + 7: matrice di tutte le merci offerte da tutti i poorti
      * parent pid + 8: array che conta il quantitativo di merci consegnate da tutte le navi
      * parent pid + 9: array che visualizza lo status delle navi nel corso della simulazione
      * parent pid + 10: array che salva tutti gli status delle merci in corso della simulazione
@@ -145,8 +145,8 @@ int main(int argc, char * argv[]){
     /**
      * SEMAFORI
      * 
-     * parent pid + 0: configuarazione iniziale
-     * parent pid + 1: creazione richieste/offerte
+     * parent pid + 0: fine configuarazione iniziale
+     * parent pid + 1: fine creazione matrice richieste/offerte dei porti
     */
 
     sem_config_id = semget(getpid(), 1, 0600 | IPC_CREAT);
@@ -155,10 +155,6 @@ int main(int argc, char * argv[]){
     sem_offerte_richieste_id = semget(getpid() + 1, 1, 0600 | IPC_CREAT);
     sem_set_val(sem_offerte_richieste_id, 0, 1);
     /*Fine Sezione crezione semaforo per configuazione*/
-
-    for(i = 0; i < SO_MERCI; i++){
-        /*merci_consegnate[i] = 0;*/
-    }
 
     switch(fork()){
         case - 1:
@@ -175,9 +171,6 @@ int main(int argc, char * argv[]){
 
     while(wait(NULL) != - 1);
 
-    for(i = 0; i < SO_MERCI * 5; i++){
-        statusMerci[i] = 0;
-    }
 
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
@@ -295,6 +288,9 @@ int main(int argc, char * argv[]){
      * All'inizio del ciclo while vengono scelti un numero casuale si porti i quali dovranno generare risorse all'interno del loro magazzino
      * Tali porti verranno scelti a caso, non ripetuti, in modo che non si verichi un possibile merge di segnali
      * I porti che giorno N sono stati scelti riceveranno dal master un segnale SIGUSR2 il quale comunicherà ai porti di creare le proprie Merce
+     * allHarborIndex = array che contiene tutti i numeri che vanno da 0 a SO_PORTI - 1
+     * harborIndexNoRepeat = array che contiene indici casuali non ripetuti per la selezione dei porti ogni giorno
+     * remeinignHarbor = array che contiene tutti i restanti indici dei porti non scelti da harborIndexNoRepeat
     */
 
     i = 0;
@@ -304,32 +300,42 @@ int main(int argc, char * argv[]){
     while(i != SO_DAYS && flagEndMaterials && !flagEndMaelstrom){
         checkEndOffers = 0;
         checkEndRequests = 0;
+
         * porti_selezionati = (rand() % (SO_PORTI - 3)) + 4;
         porto_scelto = rand() % SO_PORTI;
         if(i == 0){
-            random_index = malloc(sizeof(int) * SO_PORTI);
-            porti_random = malloc(sizeof(int) * (* porti_selezionati));
+            allHarborIndex = malloc(sizeof(int) * SO_PORTI);
+            harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
+            if(SO_PORTI > 4 &&  * porti_selezionati != SO_PORTI){
+                remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
+            }
         }
         else{
-           porti_random = malloc(sizeof(int) * (* porti_selezionati));
+            if(SO_PORTI > 4 && * porti_selezionati != SO_PORTI){
+                remeaningHarbor = malloc(sizeof(int) * (SO_PORTI - * porti_selezionati));
+            }
+            harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
         }
+
 
         j = 0;
         while(j != SO_PORTI){
-            random_index[j] = j;
+            allHarborIndex[j] = j;
             if(k < * porti_selezionati){
-                porti_random[k] = -1;
+                harborIndexNoRepeat[k] = -1;
                 k++;
             }
             j++;
         }
+        j = 0;
+        k = 0;
 
         for(k = 0; k < * porti_selezionati; k++){
             flag = 1;
             while(flag){
-                if(random_index[porto_scelto] != -1 && porti_random[k] == -1){
-                    porti_random[k] = random_index[porto_scelto];
-                    random_index[porto_scelto] = -1;
+                if(allHarborIndex[porto_scelto] != -1 && harborIndexNoRepeat[k] == -1){
+                    harborIndexNoRepeat[k] = allHarborIndex[porto_scelto];
+                    allHarborIndex[porto_scelto] = -1;
                     flag = 0;
                 }
                 else{
@@ -337,9 +343,41 @@ int main(int argc, char * argv[]){
                 }
             }
         }
+
+        k = 0;
+        z = 0;
+
+        /*Comparo k con harborIndexNoRepeat se non trovo congruenza ho trovato l'indice da inserire in remeinign harbor*/
+        if(SO_PORTI > 4){
+            for(k = 0; k < SO_PORTI; k++){
+                flagDecision = 0;
+                for(j = 0; j < * porti_selezionati; j++){
+                    if(k == harborIndexNoRepeat[j]){
+                        flagDecision = 1;
+                        break;
+                    }
+                }
+                if(!flagDecision){
+                    remeaningHarbor[z] = k;
+                    z++;
+                }
+            }
+        }
+        
+        z = 0;
+        j = 0;
+        k = 0;
+
         i++;
+
+        if(SO_PORTI != 4){
+            for(j = 0; j < (SO_PORTI - * porti_selezionati); j++){
+                kill(pidPorti[remeaningHarbor[j]], SIGTERM);
+            }
+        }
+        j = 0;
         for(j = 0; j < * porti_selezionati; j++){
-            kill(pidPorti[porti_random[j]], SIGUSR1);
+            kill(pidPorti[harborIndexNoRepeat[j]], SIGUSR1);
         }
         kill(pid_meteo, SIGUSR1);
 
@@ -360,25 +398,21 @@ int main(int argc, char * argv[]){
             flagEndMaterials = 0;
         }
         
-        free(porti_random);
-        
+        free(harborIndexNoRepeat);
+        if(SO_PORTI > 4 && * porti_selezionati != SO_PORTI){
+            free(remeaningHarbor);
+        }
     }
-    /*
-    for(i = 0; i < SO_MERCI; i++){
-        printf("Merce-> %d\tconsegnata: %d\tvolte\n", i+1, merci_consegnate[i]);
-    }
-    */
     
     /**
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
     */
     
-    
     endSimulation(shmPidPorti, shmPidNavi, pid_meteo);
 
     while(wait(NULL) != -1);
     
-    finalReport(statusNavi, statusMerci, maxOfferte, maxRichieste, merci_consegnate, statusPorti, portiSwell);
+    finalReport(statusNavi, statusMerci, maxOfferte, maxRichieste, merci_consegnate, statusPorti, portiSwell, i);
     
     shmdt(tipi_merci);
     shmdt(arr_richieste);
@@ -397,7 +431,6 @@ int main(int argc, char * argv[]){
     shmdt(statusPorti);
     shmdt(portiSwell);
 
-
     shmctl(shm_merci_id, IPC_RMID, NULL);
     shmctl(shm_richieste_id, IPC_RMID, NULL);
     shmctl(shm_offerte_id, IPC_RMID, NULL);
@@ -415,8 +448,12 @@ int main(int argc, char * argv[]){
     shmctl(shm_statusPorti_id, IPC_RMID, NULL);
     shmctl(shm_portiSwell_id, IPC_RMID, NULL);
 
+    semop(sem_config_id, NULL, IPC_RMID);
+    semop(sem_offerte_richieste_id, NULL, IPC_RMID);
+    
     free(pidNavi);
     free(pidPorti);
+    free(allHarborIndex);
 
     printf("[SISTEMA] -> SIMULAZIONE TERMINATA\n");
 
@@ -684,10 +721,9 @@ void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int * po
         printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", statusPorti[(i * 6)], statusPorti[(i * 6) + 1], statusPorti[(i * 6) + 2], statusPorti[(i * 6) + 3], statusPorti[(i * 6) + 4], statusPorti[(i * 6) + 5]);
     }
     printf("----------------------------------------------------------------------------------------------\n");
-    
 }
 
-void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * maxRichieste, int * merci_consegnate, int * statusPorti, int * portiSwell){
+void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * maxRichieste, int * merci_consegnate, int * statusPorti, int * portiSwell, int giorni){
     int carico = 0;
     int noCarico = 0;
     int operandoPorto = 0;
@@ -697,6 +733,7 @@ void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * ma
     int i;
 
     printf("----------------------------------------------------------------------------------------------\n\n[SISTEMA]\t->\tREPORT FINALE\n\n");
+    printf("[SISTEMA] -> LA SIMULAZIONE E' DURATA %d GIORNI\n\n", giorni);
     if(!flagEndMaterials){
         printf("[SISTEMA] -> TUTTE LE RICHIESTE SODDISFATTE OPPURE L'OFFERTA E' PARI A 0\n");
     }
@@ -731,8 +768,6 @@ void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * ma
         printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", statusPorti[(i * 6)], statusPorti[(i * 6) + 1], statusPorti[(i * 6) + 2], statusPorti[(i * 6) + 3], statusPorti[(i * 6) + 4], statusPorti[(i * 6) + 5]);
     }
     printf("----------------------------------------------------------------------------------------------\n");
-
-    
 }
 
 void endSimulation (pid_t * pidPorti, pid_t * pidNavi, pid_t pidMeteo){

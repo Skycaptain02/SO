@@ -53,10 +53,7 @@ int main(){
     listInsert(&lista, arr[3]);
     listInsert(&lista, arr[4]);
     listInsert(&lista, arr[5]);
-    listSubtract(&lista, merce_scaduta);
-    listSubtract(&lista, merce_scaduta);
-    listSubtract(&lista, merce_scaduta);
-    listSubtract(&lista, merce_scaduta);
-    listSubtract(&lista, merce_scaduta);
+    listPrint(&lista);
+    listFree(&lista);
     listPrint(&lista);
 }
