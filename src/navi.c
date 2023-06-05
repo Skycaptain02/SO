@@ -395,8 +395,6 @@ void funcEnd(int flag){
     listFree(&stiva);
     listFree(&temp_stiva);
 
-    printf("FINITO\n");
-
     exit(0);
 }
 
