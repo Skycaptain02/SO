@@ -2,20 +2,31 @@
 #include "../lib/ipc.h"
 #include "../lib/list.h"
 
+int SO_PORTI, SO_NAVI, SO_MERCI, SO_SIZE, SO_MIN_VITA, SO_MAX_VITA, SO_LATO, SO_SPEED, SO_CAPACITY, SO_BANCHINE; 
+int SO_FILL, SO_LOADSPEED, SO_DAYS, SO_STORM_DURATION, SO_SWELL_DURATION, SO_MAELESTROM, PRINT_MERCI, CONVERSION_SEC_NSEN;
+
+void readInputs();
 void request_offer_gen(Merce *, int *, int * , int, int);
 void dailyGen();
 void swellPause();
+void funcEnd();
 
 List listaRichieste, listaOfferte;
 Merce * tipi_merce;
+sigset_t mask;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
 int merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
 int * qta_merci_scadute, * statusMerci, * maxOfferte, * maxRichieste, * offerteTot, * richiesteTot, * statusPorti;
+int * tipi_richieste;
+int * rem_life;
 int gen;
 int rigaStatus, rigaMatrice;
-
 int flag_end = 0;
+double * arr_pos;
+int sem_opPorto_id;
+int msg_porti_navi_id;
+
 
 void handler_start(int signal){
     switch(signal){
@@ -24,6 +35,7 @@ void handler_start(int signal){
         break;
         case SIGABRT:
             flag_end = 1;
+            funcEnd();
         break;
         case SIGUSR2:
             swellPause();
@@ -46,19 +58,18 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;
-    int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
-    int sem_config_id, sem_offerte_richieste_id, sem_opPorto_id;
+    int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno;
+
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;     
+    int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     
-    double * arr_pos;
     int i, msg_bytes;
     struct MsgOp Operation;
 
-    int * tipi_richieste;
-    int * rem_life;
     struct sembuf sem_op;
 
+    readInputs();
     srand(getpid());
     
     bzero(&sa, sizeof(sa));
@@ -265,36 +276,6 @@ int main(int argc, char * argv[]){
             }
         }
     }
-    
-    /**
-     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione delle shared memory, liste e malloc
-    */
-    
-    listFree(&listaRichieste);
-    listFree(&listaOfferte);
-
-    shmdt(arr_pos);
-    shmdt(tipi_merce);
-    shmdt(matr_richieste);
-    shmdt(matr_offerte);
-    shmdt(porti_selezionati);
-    shmdt(arr_richieste_global);
-    shmdt(arr_offerte_global);
-    shmdt(statusMerci);
-    shmdt(maxOfferte);
-    shmdt(maxRichieste);
-    shmdt(statusPorti);
-
-    semop(sem_banchine_id, NULL, IPC_RMID);
-    semop(sem_opPorto_id, NULL, IPC_RMID);
-
-    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
-
-    free(tipi_richieste);
-    free(qta_merci_scadute);
-    free(rem_life);
-    free(offerteTot);
-    free(richiesteTot);
 }
 
 /**
@@ -411,7 +392,6 @@ void dailyGen(){
         /*La lista delle richieste scade? */
         /*listSubtract(&listaRichieste, qta_merci_scadute);*/
     }
-
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
 
@@ -434,6 +414,7 @@ void swellPause(){
 
     sigemptyset(&maskBlock);
     sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR1);
     sigaddset(&maskBlock, SIGUSR2);
     sigprocmask(SIG_BLOCK, &maskBlock, NULL);
     if(SO_SWELL_DURATION < 24){
@@ -453,6 +434,111 @@ void swellPause(){
 
     sigemptyset(&maskBlock);
     sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR1);
     sigaddset(&maskBlock, SIGUSR2);
     sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
+}
+
+void readInputs(){
+    const char * file_path = "../src/env_var.txt";
+    char buffer[1024];
+    char buffer_cpy[1024];
+    ssize_t bytes_read;
+    char * token;
+    FILE * file_descriptor = fopen(file_path, "r");
+    
+
+    if (!file_descriptor) {
+        perror("Failed to open the file");
+    }
+
+    while (fgets(buffer, 1024, file_descriptor)){
+        token = strtok(buffer, " ");
+        if(strcmp(token, "SO_NAVI") == 0){
+            token = strtok(NULL, " ");
+            SO_NAVI = atoi(token);
+        }else if(strcmp(token, "SO_PORTI") == 0){
+            token = strtok(NULL, " ");
+            SO_PORTI = atoi(token);
+        }else if(strcmp(token, "SO_MERCI") == 0){
+            token = strtok(NULL, " ");
+            SO_MERCI = atoi(token);
+        }else if(strcmp(token, "SO_SIZE") == 0){
+            token = strtok(NULL, " ");
+            SO_SIZE = atoi(token);
+        }else if(strcmp(token, "SO_MIN_VITA") == 0){
+            token = strtok(NULL, " ");
+            SO_MIN_VITA = atoi(token);
+        }else if(strcmp(token, "SO_MAX_VITA") == 0){
+            token = strtok(NULL, " ");
+            SO_MAX_VITA = atoi(token);
+        }else if(strcmp(token, "SO_LATO") == 0){
+            token = strtok(NULL, " ");
+            SO_LATO = atoi(token);
+        }else if(strcmp(token, "SO_SPEED") == 0){
+            token = strtok(NULL, " ");
+            SO_SPEED = atoi(token);
+        }else if(strcmp(token, "SO_CAPACITY") == 0){
+            token = strtok(NULL, " ");
+            SO_CAPACITY = atoi(token);
+        }else if(strcmp(token, "SO_BANCHINE") == 0){
+            token = strtok(NULL, " ");
+            SO_BANCHINE = atoi(token);
+        }else if(strcmp(token, "SO_FILL") == 0){
+            token = strtok(NULL, " ");
+            SO_FILL = atoi(token);
+        }else if(strcmp(token, "SO_LOADSPEED") == 0){
+            token = strtok(NULL, " ");
+            SO_LOADSPEED = atoi(token);
+        }else if(strcmp(token, "SO_DAYS") == 0){
+            token = strtok(NULL, " ");
+            SO_DAYS = atoi(token);
+        }else if(strcmp(token, "SO_STORM_DURATION") == 0){
+            token = strtok(NULL, " ");
+            SO_STORM_DURATION = atoi(token);
+        }else if(strcmp(token, "SO_SWELL_DURATION") == 0){
+            token = strtok(NULL, " ");
+            SO_SWELL_DURATION = atoi(token);
+        }else if(strcmp(token, "SO_MAELESTROM") == 0){
+            token = strtok(NULL, " ");
+            SO_MAELESTROM = atoi(token);
+        }else if(strcmp(token, "PRINT_MERCI") == 0){
+            token = strtok(NULL, " ");
+            PRINT_MERCI = atoi(token);
+        }else if(strcmp(token, "CONVERSION_SEC_NSEN") == 0){
+            token = strtok(NULL, " ");
+            CONVERSION_SEC_NSEN = atoi(token);
+        }
+    }
+    fclose(file_descriptor);
+}
+
+void funcEnd(){
+    listFree(&listaRichieste);
+    listFree(&listaOfferte);
+
+    shmdt(arr_pos);
+    shmdt(tipi_merce);
+    shmdt(matr_richieste);
+    shmdt(matr_offerte);
+    shmdt(porti_selezionati);
+    shmdt(arr_richieste_global);
+    shmdt(arr_offerte_global);
+    shmdt(statusMerci);
+    shmdt(maxOfferte);
+    shmdt(maxRichieste);
+    shmdt(statusPorti);
+
+    semop(sem_banchine_id, NULL, IPC_RMID);
+    semop(sem_opPorto_id, NULL, IPC_RMID);
+
+    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
+
+    free(tipi_richieste);
+    free(qta_merci_scadute);
+    free(rem_life);
+    free(offerteTot);
+    free(richiesteTot);
+
+    exit(0);
 }
