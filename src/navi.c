@@ -15,8 +15,6 @@ int getRow(int *, double *, int );
 struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
 double calcoloDistanza(int, double *, int, int);
 
-
-
 List stiva , temp_stiva;
 int flag_end = 0, flag_day = 0, current_weight = 0;
 int * arr_richieste_global, * arr_offerte_global, * merci_consegnate, * statusNavi, * statusMerci, * merci_scadute;
@@ -396,6 +394,8 @@ void funcEnd(int flag){
 
     listFree(&stiva);
     listFree(&temp_stiva);
+
+    printf("FINITO\n");
 
     exit(0);
 }

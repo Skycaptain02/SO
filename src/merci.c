@@ -48,7 +48,6 @@ void readInputs(){
         if(strcmp(token, "SO_NAVI") == 0){
             token = strtok(NULL, " ");
             SO_NAVI = atoi(token);
-            printf("NAVI %d\n", SO_NAVI);
         }else if(strcmp(token, "SO_PORTI") == 0){
             token = strtok(NULL, " ");
             SO_PORTI = atoi(token);

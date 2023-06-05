@@ -9,17 +9,24 @@ void readInputs();
 void request_offer_gen(Merce *, int *, int * , int, int);
 void dailyGen();
 void swellPause();
+void funcEnd();
 
 List listaRichieste, listaOfferte;
 Merce * tipi_merce;
+sigset_t mask;
 int * matr_richieste, * matr_offerte, * porti_selezionati;
 int * arr_richieste_global, * arr_offerte_global;
 int merci_spedite, merci_ricevute, numBanchine, sem_banchine_id;
 int * qta_merci_scadute, * statusMerci, * maxOfferte, * maxRichieste, * offerteTot, * richiesteTot, * statusPorti;
+int * tipi_richieste;
+int * rem_life;
 int gen;
 int rigaStatus, rigaMatrice;
-
 int flag_end = 0;
+double * arr_pos;
+int sem_opPorto_id;
+int msg_porti_navi_id;
+
 
 void handler_start(int signal){
     switch(signal){
@@ -28,6 +35,7 @@ void handler_start(int signal){
         break;
         case SIGABRT:
             flag_end = 1;
+            funcEnd();
         break;
         case SIGUSR2:
             swellPause();
@@ -50,17 +58,15 @@ int main(int argc, char * argv[]){
     double harbor_pos_y;
 
     struct sigaction sa;
-    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;
-    int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
-    int sem_config_id, sem_offerte_richieste_id, sem_opPorto_id;
+    int sem_config_id, sem_offerte_richieste_id;
     int perc_richieste, perc_offerte, errno;
+
+    int shm_fill_id, shm_merci_id, shm_pos_id, shm_richieste_id, shm_offerte_id, shm_porti_selezionati_id, shm_statusMerci_id, shm_maxOfferte_id, shm_maxRichieste_id, shmStatusPorti_id;     
+    int shm_richieste_global_id, shm_offerte_global_id, msg_porti_navi_id;
     
-    double * arr_pos;
     int i, msg_bytes;
     struct MsgOp Operation;
 
-    int * tipi_richieste;
-    int * rem_life;
     struct sembuf sem_op;
 
     readInputs();
@@ -270,36 +276,6 @@ int main(int argc, char * argv[]){
             }
         }
     }
-    
-    /**
-     * Simulazione finta, ricevuto segnale di SIGABRT, deallocazione delle shared memory, liste e malloc
-    */
-    
-    listFree(&listaRichieste);
-    listFree(&listaOfferte);
-
-    shmdt(arr_pos);
-    shmdt(tipi_merce);
-    shmdt(matr_richieste);
-    shmdt(matr_offerte);
-    shmdt(porti_selezionati);
-    shmdt(arr_richieste_global);
-    shmdt(arr_offerte_global);
-    shmdt(statusMerci);
-    shmdt(maxOfferte);
-    shmdt(maxRichieste);
-    shmdt(statusPorti);
-
-    semop(sem_banchine_id, NULL, IPC_RMID);
-    semop(sem_opPorto_id, NULL, IPC_RMID);
-
-    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
-
-    free(tipi_richieste);
-    free(qta_merci_scadute);
-    free(rem_life);
-    free(offerteTot);
-    free(richiesteTot);
 }
 
 /**
@@ -416,7 +392,6 @@ void dailyGen(){
         /*La lista delle richieste scade? */
         /*listSubtract(&listaRichieste, qta_merci_scadute);*/
     }
-
     request_offer_gen(tipi_merce, porti_selezionati, matr_richieste, perc_richieste, 0);
     request_offer_gen(tipi_merce, porti_selezionati, matr_offerte, 100 - perc_richieste, 1);
 
@@ -439,6 +414,7 @@ void swellPause(){
 
     sigemptyset(&maskBlock);
     sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR1);
     sigaddset(&maskBlock, SIGUSR2);
     sigprocmask(SIG_BLOCK, &maskBlock, NULL);
     if(SO_SWELL_DURATION < 24){
@@ -458,6 +434,7 @@ void swellPause(){
 
     sigemptyset(&maskBlock);
     sigaddset(&maskBlock, SIGTERM);
+    sigaddset(&maskBlock, SIGUSR1);
     sigaddset(&maskBlock, SIGUSR2);
     sigprocmask(SIG_UNBLOCK, &maskBlock, NULL);
 }
@@ -534,4 +511,34 @@ void readInputs(){
         }
     }
     fclose(file_descriptor);
+}
+
+void funcEnd(){
+    listFree(&listaRichieste);
+    listFree(&listaOfferte);
+
+    shmdt(arr_pos);
+    shmdt(tipi_merce);
+    shmdt(matr_richieste);
+    shmdt(matr_offerte);
+    shmdt(porti_selezionati);
+    shmdt(arr_richieste_global);
+    shmdt(arr_offerte_global);
+    shmdt(statusMerci);
+    shmdt(maxOfferte);
+    shmdt(maxRichieste);
+    shmdt(statusPorti);
+
+    semop(sem_banchine_id, NULL, IPC_RMID);
+    semop(sem_opPorto_id, NULL, IPC_RMID);
+
+    msgctl(msg_porti_navi_id, IPC_RMID, NULL);
+
+    free(tipi_richieste);
+    free(qta_merci_scadute);
+    free(rem_life);
+    free(offerteTot);
+    free(richiesteTot);
+
+    exit(0);
 }

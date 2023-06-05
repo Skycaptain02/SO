@@ -172,7 +172,6 @@ int main(int argc, char * argv[]){
 
     while(wait(NULL) != - 1);
 
-
     /**
      * Generazione dei primi 4 porti su ogni lato della mappa
     */
@@ -299,10 +298,14 @@ int main(int argc, char * argv[]){
     k = 0;
     printf("[SISTEMA]\t -> \t INIZIO SIMULAZIONE\n");
     while(semctl(sem_config_id, 0, GETVAL) != 0);
+    * porti_selezionati = SO_PORTI;
+    for(i = 0; i < SO_PORTI; i++){
+        kill(pidPorti[i], SIGUSR1);
+    }
+    i = 0;
     while(i != SO_DAYS && flagEndMaterials && !flagEndMaelstrom){
         checkEndOffers = 0;
         checkEndRequests = 0;
-
         * porti_selezionati = (rand() % (SO_PORTI - 3)) + 4;
         porto_scelto = rand() % SO_PORTI;
         if(i == 0){
@@ -318,8 +321,6 @@ int main(int argc, char * argv[]){
             }
             harborIndexNoRepeat = malloc(sizeof(int) * (* porti_selezionati));
         }
-
-
         j = 0;
         while(j != SO_PORTI){
             allHarborIndex[j] = j;
@@ -331,7 +332,6 @@ int main(int argc, char * argv[]){
         }
         j = 0;
         k = 0;
-
         for(k = 0; k < * porti_selezionati; k++){
             flag = 1;
             while(flag){
@@ -483,6 +483,8 @@ void gen_offerta(int * matr_richieste, int * matr_offerte, int * pidPorti, int n
         j = 1;
         counter = 0;
     }
+
+    free(arr_control);
 }
     
 /**
@@ -637,6 +639,10 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
         }
     }
     printf("[SISTEMA]\t -> \t MODULI DOMANDA/OFFERTA GENERATI CORRETTAMENTE\n");
+
+    free(arr_control);
+    free(matr_richieste);
+    free(matr_offerte);
 }
 
 
