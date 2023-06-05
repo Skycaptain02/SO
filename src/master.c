@@ -699,28 +699,48 @@ void dailyPrint(int * statusNavi, int * statusMerci, int * statusPorti, int * po
         naviAbbattute += statusNavi[(i * 6) + 4];
         naviBloccate += statusNavi[(i * 6) + 5];
     }
+    printf("\033[0;33m");
     printf("----------------------------------------------------------------------------------------------\n");
+    printf("\033[0m");
+    printf("\033[1;31m");
     printf("GIORNO\t->\t[%d]\n", giorno);
+    printf("\033[0m");
     printf("\n");
-    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
-    printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
-    printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n", operandoPorto);
-    printf("NAVI CHE SONO STATE AFFONDATE\t->\t[%d]\n", naviAbbattute);
-    printf("NAVI BLOCCATE DA STORM\t->\t[%d]\n", naviBloccate);
+    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[\033[1;32m%d\033[0m]\n", noCarico);
+    printf("NAVI IN VIAGGIO CON CARICO\t->\t[\033[1;32m%d\033[0m]\n", carico);
+    printf("NAVI OPERANDO PRESSO PORTI\t->\t[\033[1;32m%d\033[0m]\n", operandoPorto);
+    printf("NAVI CHE SONO STATE AFFONDATE\t->\t[\033[2;31m%d\033[0m]\n", naviAbbattute);
+    printf("NAVI BLOCCATE DA STORM\t\t->\t[\033[0;31m%d\033[0m]\n", naviBloccate);
     printf("\n");
     printf("PORTI BLOCCATI DA SWELL\n");
     for(i = 0; i < giorno; i++){
-        printf("[PORTO\t%d]\n", portiSwell[i]);
+        printf("[PORTO\t\033[0;31m%d\033[0m]\n", portiSwell[i]);
     }
     printf("\n");
     for(i = 0; i < SO_MERCI; i++){
+        if(i%2 == 0){
+            printf("\033[0;36m");
+        }
+        else{
+            printf("\033[0;34m");
+        }
         printf("Merce->%d presente in porto->%d\tpresente in nave->%d\tconsegnata in porto->%d\tscaduta in porto->%d\tscaduta in nave->%d\n", (i + 1), statusMerci[(i*5)], statusMerci[(i*5)+1], statusMerci[(i*5)+2], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
+        printf("\033[0m");
     }
     printf("\n");
     for(i = 0; i < SO_PORTI; i++){
+        if(i%2 == 0){
+            printf("\033[1;32m");
+        }
+        else{
+            printf("\033[1;35m");
+        }
         printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", statusPorti[(i * 6)], statusPorti[(i * 6) + 1], statusPorti[(i * 6) + 2], statusPorti[(i * 6) + 3], statusPorti[(i * 6) + 4], statusPorti[(i * 6) + 5]);
+        printf("\033[0m");
     }
+    printf("\033[0;33m");
     printf("----------------------------------------------------------------------------------------------\n");
+    printf("\033[0m");
 }
 
 void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * maxRichieste, int * merci_consegnate, int * statusPorti, int * portiSwell, int giorni){
@@ -732,7 +752,9 @@ void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * ma
     int merciTot = 0;
     int i;
 
-    printf("----------------------------------------------------------------------------------------------\n\n[SISTEMA]\t->\tREPORT FINALE\n\n");
+    printf("\033[0;36m");
+    printf("\n\n\n\n\n\n----------------------------------------------------------------------------------------------\n\n[SISTEMA]\t->\tREPORT FINALE\n\n");
+    printf("\033[0m");
     printf("[SISTEMA] -> LA SIMULAZIONE E' DURATA %d GIORNI\n\n", giorni);
     if(!flagEndMaterials){
         printf("[SISTEMA] -> TUTTE LE RICHIESTE SODDISFATTE OPPURE L'OFFERTA E' PARI A 0\n");
@@ -747,27 +769,38 @@ void finalReport(int * statusNavi, int * statusMerci, int * maxOfferte, int * ma
         naviAbbattute += statusNavi[(i * 6) + 4];
         naviBloccate += statusNavi[(i * 6) + 5];
     }
-    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[%d]\n", noCarico);
-    printf("NAVI IN VIAGGIO CON CARICO\t->\t[%d]\n", carico);
-    printf("NAVI OPERANDO PRESSO PORTI\t->\t[%d]\n", operandoPorto);
-    printf("NAVI CHE SONO STATE AFFONDATE\t->\t[%d]\n", naviAbbattute);
-    printf("NAVI BLOCCATE DA STORM\t->\t[%d]\n", naviBloccate);
+    printf("NAVI IN VIAGGIO SENZA CARICO\t->\t[\033[1;32m%d\033[0m]\n", noCarico);
+    printf("NAVI IN VIAGGIO CON CARICO\t->\t[\033[1;32m%d\033[0m]\n", carico);
+    printf("NAVI OPERANDO PRESSO PORTI\t->\t[\033[1;32m%d\033[0m]\n", operandoPorto);
+    printf("NAVI CHE SONO STATE AFFONDATE\t->\t[\033[2;31m%d\033[0m]\n", naviAbbattute);
+    printf("NAVI BLOCCATE DA STORM\t\t->\t[\033[0;31m%d\033[0m]\n", naviBloccate);
     printf("\n");
     printf("PORTI BLOCCATI DA SWELL\n");
     for(i = 0; i < SO_DAYS; i++){
-        printf("[PORTO\t%d]\n", portiSwell[i]);
+        printf("[PORTO\t\033[0;31m%d\033[0m]\n", portiSwell[i]);
     }
     printf("\n");
     for(i = 0; i < SO_MERCI; i++){
         merciTot = statusMerci[(i * 5)] + statusMerci[(i * 5) + 1] + statusMerci[(i * 5) + 2] +  statusMerci[(i * 5) + 3] + statusMerci[(i * 5) + 4];
         printf("Merce -> %d: totale generata %d, di cui: presente in porto->%d\tpresente in nave->%d\tconsegnata in porto->%d\tscaduta in porto->%d scaduta in nave->%d\n", (i + 1),merciTot, statusMerci[(i*5)], statusMerci[(i*5)+1], merci_consegnate[i], statusMerci[(i*5)+3], statusMerci[(i*5)+4]);
+        printf("\033[2;37m");
         printf("Porto che ne ha offerta di più -> %d, Porto che ne ha richiesta di più -> %d\n\n", maxOfferte[(i*2)], maxRichieste[(i*2)]);
+        printf("\033[0m");
     }
     printf("\n");
     for(i = 0; i < SO_PORTI; i++){
+         if(i%2 == 0){
+            printf("\033[1;32m");
+        }
+        else{
+            printf("\033[1;35m");
+        }
         printf("[PORTO -> %d] Merci:\t presenti->%d\tricevute->%d\tspedite->%d\tbanchine->\tlibere %d su %d totali\n", statusPorti[(i * 6)], statusPorti[(i * 6) + 1], statusPorti[(i * 6) + 2], statusPorti[(i * 6) + 3], statusPorti[(i * 6) + 4], statusPorti[(i * 6) + 5]);
+        printf("\033[0m");
     }
+    printf("\033[0;36m");
     printf("----------------------------------------------------------------------------------------------\n");
+    printf("\033[0m");
 }
 
 void endSimulation (pid_t * pidPorti, pid_t * pidNavi, pid_t pidMeteo){
