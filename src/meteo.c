@@ -30,7 +30,7 @@ int main(int argc, char * argv[]){
     int shm_pidNavi_id, shm_pidPorti_id, shm_statusNavi_id, shm_portiSwell_id;
     
     int i;
-    int numNavi = SO_NAVI;
+    int numNavi;
     struct timespec req, rem, rem2;
     struct sigaction sa;
     int modulo;
@@ -39,6 +39,7 @@ int main(int argc, char * argv[]){
 
     readInputs();
 
+    numNavi = SO_NAVI;
     srand(getpid());
  
     bzero(&sa, sizeof(sa));
@@ -65,6 +66,7 @@ int main(int argc, char * argv[]){
     sem_config_id = semget(getppid(), 1, 0600 | IPC_CREAT);
     sem_reserve(sem_config_id, 0);
     /*Fine Sezione*/
+
 
     shm_pidNavi_id = shmget(getppid() + 13, sizeof(pid_t) * SO_NAVI, 0600 | IPC_CREAT);
     pidNavi = shmat(shm_pidNavi_id, NULL, 0);

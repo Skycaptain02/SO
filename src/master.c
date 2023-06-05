@@ -39,8 +39,6 @@ int main(int argc, char * argv[]){
     struct sigaction sa;
     int i, j, k, z, x, y, status, errno;
     
-
-    
     int sem_config_id = 0, sem_offerte_richieste_id = 0;
     int * harborIndexNoRepeat, * allHarborIndex, * remeaningHarbor;
 
@@ -58,8 +56,6 @@ int main(int argc, char * argv[]){
 
     struct timespec req, rem;
     
-    pidNavi = malloc(sizeof(pidNavi) * SO_NAVI);
-    pidPorti = malloc(sizeof(pidPorti) * SO_PORTI);
 
     sigemptyset(&mask_block);
     sigaddset(&mask_block, SIGINT);
@@ -67,13 +63,15 @@ int main(int argc, char * argv[]){
 
     srand(getpid());
 
-      
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handler;
     sa.sa_flags = SA_RESTART;
     sigaction(SIGABRT, &sa, NULL);
 
     check_inputs();
+
+    pidNavi = malloc(sizeof(pidNavi) * SO_NAVI);
+    pidPorti = malloc(sizeof(pidPorti) * SO_PORTI);
 
     /**
      * SHARED MEMORY
@@ -232,8 +230,7 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
-    gen_richiesta_offerta(pidPorti, arr_richieste, arr_offerte, 1);
-    printf("ABBASSO SEMAFORO\n");
+    gen_richiesta_offerta(pidPorti, arr_richieste, arr_offerte, 0);
     sem_reserve(sem_offerte_richieste_id, 0);
     
     /**
@@ -412,7 +409,6 @@ int main(int argc, char * argv[]){
     /**
      * Fine sumulazione, invio un SIGABRT a tutti i processi indicandogli di terminare, subito dopo dealloco tutte le varibili allocate con MALLOC e SHARED MEMORY
     */
-    
     endSimulation(shmPidPorti, shmPidNavi, pid_meteo);
 
     while(wait(NULL) != -1);
@@ -623,9 +619,9 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
     if(print){
         printf("\tRICHIESTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
-            printf("Pid: %d ", matr_richieste[j * (SO_MERCI + 1)]);
+            printf("Pid: %d\n", matr_richieste[j * (SO_MERCI + 1)]);
             for(k = 1; k < SO_MERCI + 1; k++){
-                printf("merce: %d,\tpresa: %d\t", k, matr_richieste[(j * (SO_MERCI + 1)) + k]);
+                printf("merce: %d presa: %d ", k, matr_richieste[(j * (SO_MERCI + 1)) + k]);
             }
             printf("\n");
         }
@@ -633,9 +629,9 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
 
         printf("\tOFFERTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
-            printf("Pid: %d ", matr_offerte[j * (SO_MERCI + 1)]);
+            printf("Pid: %d\n", matr_offerte[j * (SO_MERCI + 1)]);
             for(k = 1; k < SO_MERCI + 1; k++){
-                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[(j * (SO_MERCI + 1)) + k]);
+                printf("merce: %d presa: %d ", k, matr_offerte[(j * (SO_MERCI + 1)) + k]);
             }
             printf("\n");
         }
@@ -667,79 +663,60 @@ void check_inputs(){
         if(strcmp(token, "SO_NAVI") == 0){
             token = strtok(NULL, " ");
             SO_NAVI = atoi(token);
-            printf("A %d\n", SO_NAVI);
         }else if(strcmp(token, "SO_PORTI") == 0){
             token = strtok(NULL, " ");
             SO_PORTI = atoi(token);
-            printf("B %d\n", SO_PORTI);
         }else if(strcmp(token, "SO_MERCI") == 0){
             token = strtok(NULL, " ");
             SO_MERCI = atoi(token);
-            printf("C %d\n", SO_MERCI);
         }else if(strcmp(token, "SO_SIZE") == 0){
             token = strtok(NULL, " ");
             SO_SIZE = atoi(token);
-            printf("D %d\n", SO_SIZE);
         }else if(strcmp(token, "SO_MIN_VITA") == 0){
             token = strtok(NULL, " ");
             SO_MIN_VITA = atoi(token);
-            printf("E %d\n", SO_MIN_VITA);
         }else if(strcmp(token, "SO_MAX_VITA") == 0){
             token = strtok(NULL, " ");
             SO_MAX_VITA = atoi(token);
-            printf("F %d\n", SO_MAX_VITA);
         }else if(strcmp(token, "SO_LATO") == 0){
             token = strtok(NULL, " ");
             SO_LATO = atoi(token);
-            printf("G %d\n", SO_LATO);
         }else if(strcmp(token, "SO_SPEED") == 0){
             token = strtok(NULL, " ");
             SO_SPEED = atoi(token);
-            printf("H %d\n", SO_SPEED);
         }else if(strcmp(token, "SO_CAPACITY") == 0){
             token = strtok(NULL, " ");
             SO_CAPACITY = atoi(token);
-            printf("I %d\n", SO_CAPACITY);
         }else if(strcmp(token, "SO_BANCHINE") == 0){
             token = strtok(NULL, " ");
             SO_BANCHINE = atoi(token);
-            printf("J %d\n", SO_BANCHINE);
         }else if(strcmp(token, "SO_FILL") == 0){
             token = strtok(NULL, " ");
             SO_FILL = atoi(token);
-            printf("K %d\n", SO_FILL);
         }else if(strcmp(token, "SO_LOADSPEED") == 0){
             token = strtok(NULL, " ");
             SO_LOADSPEED = atoi(token);
-            printf("L %d\n", SO_LOADSPEED);
         }else if(strcmp(token, "SO_DAYS") == 0){
             token = strtok(NULL, " ");
             SO_DAYS = atoi(token);
-            printf("M %d\n", SO_DAYS);
         }else if(strcmp(token, "SO_STORM_DURATION") == 0){
             token = strtok(NULL, " ");
             SO_STORM_DURATION = atoi(token);
-            printf("N %d\n", SO_STORM_DURATION);
         }else if(strcmp(token, "SO_SWELL_DURATION") == 0){
             token = strtok(NULL, " ");
             SO_SWELL_DURATION = atoi(token);
-            printf("O %d\n", SO_SWELL_DURATION);
         }else if(strcmp(token, "SO_MAELESTROM") == 0){
             token = strtok(NULL, " ");
             SO_MAELESTROM = atoi(token);
-            printf("P %d\n", SO_MAELESTROM);
         }else if(strcmp(token, "PRINT_MERCI") == 0){
             token = strtok(NULL, " ");
             PRINT_MERCI = atoi(token);
-            printf("Q %d\n", PRINT_MERCI);
         }else if(strcmp(token, "CONVERSION_SEC_NSEN") == 0){
             token = strtok(NULL, " ");
             CONVERSION_SEC_NSEN = atoi(token);
-            printf("R %d\n", CONVERSION_SEC_NSEN);
         }
     }
     fclose(file_descriptor);
-
 
     if(SO_PORTI < 4 || SO_PORTI > 2000){
         if(SO_PORTI < 4){

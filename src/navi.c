@@ -7,13 +7,14 @@ int SO_PORTI, SO_NAVI, SO_MERCI, SO_SIZE, SO_MIN_VITA, SO_MAX_VITA, SO_LATO, SO_
 int SO_FILL, SO_LOADSPEED, SO_DAYS, SO_STORM_DURATION, SO_SWELL_DURATION, SO_MAELESTROM, PRINT_MERCI, CONVERSION_SEC_NSEN;
 
 void readInputs();
-void travel(int *, double);
-struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
-int getRow(int *, double *, int );
-double calcoloDistanza(int, double *, int, int);
-int harborOperations(int *, int);
-void funcEnd(int);
 void stormPause();
+void funcEnd(int);
+void travel(int *, double);
+int harborOperations(int *, int);
+int getRow(int *, double *, int );
+struct MsgOp genMessaggio(unsigned int, int, int, pid_t);
+double calcoloDistanza(int, double *, int, int);
+
 
 
 List stiva , temp_stiva;
@@ -441,7 +442,7 @@ void readInputs(){
     ssize_t bytes_read;
     char * token;
     FILE * file_descriptor = fopen(file_path, "r");
-    
+
 
     if (!file_descriptor) {
         perror("Failed to open the file");

@@ -18,27 +18,6 @@
 #include <time.h>
 #include <string.h>
 
-
-/*#define SO_NAVI 1000
-#define SO_PORTI 10
-#define SO_MERCI 5
-#define SO_SIZE 1
-#define SO_MIN_VITA 1
-#define SO_MAX_VITA 3
-#define SO_LATO 1000
-#define SO_SPEED 500
-#define SO_CAPACITY 10
-#define SO_BANCHINE 10
-#define SO_FILL 500000
-#define SO_LOADSPEED 50
-#define SO_DAYS 5
-#define SO_STORM_DURATION 6
-#define SO_SWELL_DURATION 24
-#define SO_MAELESTROM 10000
-
-#define PRINT_MERCI 0
-#define CONVERSION_SEC_NSEN 1000000000*/
-
 typedef struct{
     int type;
     int weight;
