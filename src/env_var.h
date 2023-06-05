@@ -16,9 +16,10 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <string.h>
 
 
-#define SO_NAVI 1000
+/*#define SO_NAVI 1000
 #define SO_PORTI 10
 #define SO_MERCI 5
 #define SO_SIZE 1
@@ -36,7 +37,7 @@
 #define SO_MAELESTROM 10000
 
 #define PRINT_MERCI 0
-#define CONVERSION_SEC_NSEN 1000000000
+#define CONVERSION_SEC_NSEN 1000000000*/
 
 typedef struct{
     int type;

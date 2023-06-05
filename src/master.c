@@ -1,6 +1,9 @@
 #include "env_var.h"
 #include "../lib/ipc.h"
 
+int SO_PORTI, SO_NAVI, SO_MERCI, SO_SIZE, SO_MIN_VITA, SO_MAX_VITA, SO_LATO, SO_SPEED, SO_CAPACITY, SO_BANCHINE; 
+int SO_FILL, SO_LOADSPEED, SO_DAYS, SO_STORM_DURATION, SO_SWELL_DURATION, SO_MAELESTROM, PRINT_MERCI, CONVERSION_SEC_NSEN;
+
 int flagEndMaelstrom = 0;
 int checkEndOffers = 0, checkEndRequests = 0, flagEndMaterials = 1;
 
@@ -230,6 +233,7 @@ int main(int argc, char * argv[]){
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
     gen_richiesta_offerta(pidPorti, arr_richieste, arr_offerte, 1);
+    printf("ABBASSO SEMAFORO\n");
     sem_reserve(sem_offerte_richieste_id, 0);
     
     /**
@@ -243,6 +247,7 @@ int main(int argc, char * argv[]){
                 exit(-1);
                 break;
             case 0:
+                
                 execve("../bin/navi", args_navi , NULL);
                 exit(- 1);
             break;
@@ -505,11 +510,12 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
     else{
         num_merci = SO_MERCI/2;
     }
+    
     arr_control = malloc(sizeof(int) * SO_MERCI);
     matr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     matr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
     
-
+     
     /**
      * Generazione delle Merce richeste dai primi SO_PORTI-1 porti, i controlli effettuati sulla generazione sono: 
      * 1) che il numero di richieste totali per singola merce non può eccedere SO_MERCI/2 (num_merci)
@@ -527,7 +533,7 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
         }
     }
     else{        
-        for(j = 0; j < SO_PORTI - 1; j++){
+        for(j = 0; j < (SO_PORTI - 1); j++){
             matr_richieste[j * (SO_MERCI + 1)] = pidPorti[j];
             num_richieste = (rand() % (num_merci)) + 1;
             for(k = 0; k < num_richieste; k++){
@@ -544,8 +550,12 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
                 }
                 
                 matr_richieste[(j * (SO_MERCI + 1)) + col_merce_richiesta] = 1;
+                
+                
             }
         }
+          
+
         
         /**
          * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata richiesta dai primi SO_PORTI-1 porti
@@ -566,7 +576,6 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
             }
         }
         
-
         /**
          * Assegnazione delle rimanenti richieste per l'ultimo porto, escludendo quelle con troppe richieste (> SO_PORTI/2)
          * oppure già richieste dallo stesso porto (matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1)
@@ -641,13 +650,116 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
 */
 
 void check_inputs(){
-    if(SO_PORTI < 4){
-        printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
-        exit(- 1);
+    const char * file_path = "../src/env_var.txt";
+    char buffer[1024];
+    char buffer_cpy[1024];
+    ssize_t bytes_read;
+    char * token;
+    FILE * file_descriptor = fopen(file_path, "r");
+    
+
+    if (!file_descriptor) {
+        perror("Failed to open the file");
     }
-    else if(SO_NAVI < 1){
-        printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI NAVI INSERITO E' < 0, BISOGNA INSERIRNE ALMENO UN NUMERO > 0\n");
-        exit(- 1);
+
+    while (fgets(buffer, 1024, file_descriptor)){
+        token = strtok(buffer, " ");
+        if(strcmp(token, "SO_NAVI") == 0){
+            token = strtok(NULL, " ");
+            SO_NAVI = atoi(token);
+            printf("A %d\n", SO_NAVI);
+        }else if(strcmp(token, "SO_PORTI") == 0){
+            token = strtok(NULL, " ");
+            SO_PORTI = atoi(token);
+            printf("B %d\n", SO_PORTI);
+        }else if(strcmp(token, "SO_MERCI") == 0){
+            token = strtok(NULL, " ");
+            SO_MERCI = atoi(token);
+            printf("C %d\n", SO_MERCI);
+        }else if(strcmp(token, "SO_SIZE") == 0){
+            token = strtok(NULL, " ");
+            SO_SIZE = atoi(token);
+            printf("D %d\n", SO_SIZE);
+        }else if(strcmp(token, "SO_MIN_VITA") == 0){
+            token = strtok(NULL, " ");
+            SO_MIN_VITA = atoi(token);
+            printf("E %d\n", SO_MIN_VITA);
+        }else if(strcmp(token, "SO_MAX_VITA") == 0){
+            token = strtok(NULL, " ");
+            SO_MAX_VITA = atoi(token);
+            printf("F %d\n", SO_MAX_VITA);
+        }else if(strcmp(token, "SO_LATO") == 0){
+            token = strtok(NULL, " ");
+            SO_LATO = atoi(token);
+            printf("G %d\n", SO_LATO);
+        }else if(strcmp(token, "SO_SPEED") == 0){
+            token = strtok(NULL, " ");
+            SO_SPEED = atoi(token);
+            printf("H %d\n", SO_SPEED);
+        }else if(strcmp(token, "SO_CAPACITY") == 0){
+            token = strtok(NULL, " ");
+            SO_CAPACITY = atoi(token);
+            printf("I %d\n", SO_CAPACITY);
+        }else if(strcmp(token, "SO_BANCHINE") == 0){
+            token = strtok(NULL, " ");
+            SO_BANCHINE = atoi(token);
+            printf("J %d\n", SO_BANCHINE);
+        }else if(strcmp(token, "SO_FILL") == 0){
+            token = strtok(NULL, " ");
+            SO_FILL = atoi(token);
+            printf("K %d\n", SO_FILL);
+        }else if(strcmp(token, "SO_LOADSPEED") == 0){
+            token = strtok(NULL, " ");
+            SO_LOADSPEED = atoi(token);
+            printf("L %d\n", SO_LOADSPEED);
+        }else if(strcmp(token, "SO_DAYS") == 0){
+            token = strtok(NULL, " ");
+            SO_DAYS = atoi(token);
+            printf("M %d\n", SO_DAYS);
+        }else if(strcmp(token, "SO_STORM_DURATION") == 0){
+            token = strtok(NULL, " ");
+            SO_STORM_DURATION = atoi(token);
+            printf("N %d\n", SO_STORM_DURATION);
+        }else if(strcmp(token, "SO_SWELL_DURATION") == 0){
+            token = strtok(NULL, " ");
+            SO_SWELL_DURATION = atoi(token);
+            printf("O %d\n", SO_SWELL_DURATION);
+        }else if(strcmp(token, "SO_MAELESTROM") == 0){
+            token = strtok(NULL, " ");
+            SO_MAELESTROM = atoi(token);
+            printf("P %d\n", SO_MAELESTROM);
+        }else if(strcmp(token, "PRINT_MERCI") == 0){
+            token = strtok(NULL, " ");
+            PRINT_MERCI = atoi(token);
+            printf("Q %d\n", PRINT_MERCI);
+        }else if(strcmp(token, "CONVERSION_SEC_NSEN") == 0){
+            token = strtok(NULL, " ");
+            CONVERSION_SEC_NSEN = atoi(token);
+            printf("R %d\n", CONVERSION_SEC_NSEN);
+        }
+    }
+    fclose(file_descriptor);
+
+
+    if(SO_PORTI < 4 || SO_PORTI > 2000){
+        if(SO_PORTI < 4){
+            printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' INSUFFICENTE, BISOGNA INSERIRNE ALMENO 4\n");
+            exit(- 1);
+        }
+        else if(SO_PORTI > 2000){
+            printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI PORTI INSERITO E' TROPPO GRANDE, BISOGNA INSERIRNE MENO DI 2000 \n");
+            exit(- 1);
+        }
+    }
+    else if(SO_NAVI < 1 || SO_NAVI > 5000){
+        if(SO_NAVI < 1){
+            printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI NAVI INSERITO E' < 0, BISOGNA INSERIRNE ALMENO UN NUMERO > 0\n");
+            exit(- 1);
+        }
+        else if(SO_NAVI > 5000){
+            printf("[SISTEMA]\t -> \t ERRORE: IL NUMERO DI NAVI INSERITO E' TROPPO ALTO, INSERISCINE MENO DI 5000\n");
+            exit(- 1);
+        }
     }
     else if(SO_MIN_VITA > SO_MAX_VITA || SO_MIN_VITA < 0 || SO_MAX_VITA < 0){
         if(SO_MIN_VITA < 0){
