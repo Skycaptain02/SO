@@ -5,7 +5,7 @@ int flagEndMaelstrom = 0;
 int checkEndOffers = 0, checkEndRequests = 0, flagEndMaterials = 1;
 
 void gen_richiesta_offerta(int *, int *, int * , int);
-void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI + 1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * , int , int);
+void gen_offerta(int *, int *, int * , int , int);
 void check_inputs();
 void dailyPrint(int *, int *, int *, int *, int);
 void finalReport(int *, int *, int *, int *, int *, int *, int *, int);
@@ -229,7 +229,7 @@ int main(int argc, char * argv[]){
 
     printf("[SISTEMA]\t -> \t TUTTI I PORTI SONO PRONTI\n");
 
-    gen_richiesta_offerta(pidPorti, arr_richieste, arr_offerte, 0);
+    gen_richiesta_offerta(pidPorti, arr_richieste, arr_offerte, 1);
     sem_reserve(sem_offerte_richieste_id, 0);
     
     /**
@@ -467,15 +467,17 @@ int main(int argc, char * argv[]){
  * Infine si effettua un controllo sull'ultimo porto, in modo che tutte le Merce siano offerte almeno una volta
 */
 
-void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_PORTI][SO_MERCI+1], int * pidPorti, int num_merci, int print){
-    int arr_control[SO_MERCI]= {0};
+void gen_offerta(int * matr_richieste, int * matr_offerte, int * pidPorti, int num_merci, int print){
+    int * arr_control;
     int i, k, j, flag = 0, sum = 0, col_merce_offerte;
     int rand_pid, counter = SO_PORTI;
 
+    arr_control = malloc(sizeof(int) * SO_MERCI);
+
     for(i = 0; i < SO_PORTI; i++){
-        matr_offerte[i][0] = pidPorti[i];
+        matr_offerte[(i * (SO_MERCI + 1))] = pidPorti[i];
         for(j = 1; j < SO_MERCI + 1; j++){
-            matr_offerte[i][j] = !matr_richieste[i][j];
+            matr_offerte[(i * (SO_MERCI + 1)) + j] = !matr_richieste[(i * (SO_MERCI + 1)) + j];
         }
         j = 1;
         counter = 0;
@@ -491,8 +493,9 @@ void gen_offerta(int matr_richieste[SO_PORTI][SO_MERCI+1], int matr_offerte[SO_P
 */
 
 void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offerte, int print){
-    int col_merce_richiesta, arr_control[SO_MERCI] = {0}, counter = 0;
-    int matr_richieste[SO_PORTI][SO_MERCI+1] = {0}, matr_offerte[SO_PORTI][SO_MERCI + 1] = {0};
+    int col_merce_richiesta = 0, counter = 0;
+    int * arr_control;
+    int * matr_richieste, * matr_offerte;
     int i, j, k, z;
     int sum = 0, flag = 0, num_richieste, num_merci;
 
@@ -502,6 +505,10 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
     else{
         num_merci = SO_MERCI/2;
     }
+    arr_control = malloc(sizeof(int) * SO_MERCI);
+    matr_richieste = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
+    matr_offerte = malloc(sizeof(int) * SO_PORTI * (SO_MERCI + 1));
+    
 
     /**
      * Generazione delle Merce richeste dai primi SO_PORTI-1 porti, i controlli effettuati sulla generazione sono: 
@@ -512,51 +519,53 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
 
     if(SO_MERCI == 1){
         for(i = 0; i < SO_PORTI; i++){
-            matr_richieste[i][0] = pidPorti[i];
+            matr_richieste[i * (SO_MERCI + 1)] = pidPorti[i];
             if(i < SO_PORTI/2){
-                matr_richieste[i][1] = 1;
+                matr_richieste[(i * (SO_MERCI + 1)) + 1] = 1;
             }
             
         }
     }
-    else{           
-        for(j = 0; j < SO_PORTI-1; j++){
-            matr_richieste[j][0] = pidPorti[j];
+    else{        
+        for(j = 0; j < SO_PORTI - 1; j++){
+            matr_richieste[j * (SO_MERCI + 1)] = pidPorti[j];
             num_richieste = (rand() % (num_merci)) + 1;
             for(k = 0; k < num_richieste; k++){
-                col_merce_richiesta = (rand() % SO_MERCI)+1;
-                for(i = 0; i < SO_PORTI-1; i++){
-                    sum += matr_richieste[i][col_merce_richiesta];
+                col_merce_richiesta = (rand() % SO_MERCI) + 1;
+                for(i = 0; i < SO_PORTI - 1; i++){
+                    sum += matr_richieste[(i * (SO_MERCI + 1)) + col_merce_richiesta];
                 }
-                while(matr_richieste[j][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
+                while(matr_richieste[(j * (SO_MERCI + 1)) + col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
                     sum = 0;
                     col_merce_richiesta = (rand() % SO_MERCI) + 1;
-                    for(i = 0; i < SO_PORTI-1; i++){
-                        sum += matr_richieste[i][col_merce_richiesta];
+                    for(i = 0; i < SO_PORTI - 1; i++){
+                        sum += matr_richieste[(i * (SO_MERCI + 1)) + col_merce_richiesta];
                     }
                 }
-                matr_richieste[j][col_merce_richiesta] = 1;
+                
+                matr_richieste[(j * (SO_MERCI + 1)) + col_merce_richiesta] = 1;
             }
         }
-
+        
         /**
          * Controllo sull'intera matrice, arr_control[i] = 0 se merce i non è mai stata richiesta dai primi SO_PORTI-1 porti
          * Tramite il contenuto di quest'ultimo array andremo ad assegnare all'ultimo porto tutte le risorse che non sono state richieste dagli altri
         */
-        
-        for(j = 0; j < SO_PORTI-1; j++){
-            for(k = 1; k < SO_MERCI +1; k++){
-                arr_control[k-1] |= matr_richieste[j][k];
+
+        for(j = 0; j < SO_PORTI - 1; j++){
+            for(k = 1; k < SO_MERCI + 1; k++){
+                arr_control[k - 1] |= matr_richieste[(j * (SO_MERCI + 1)) + k];
             }
         }
-        matr_richieste[SO_PORTI-1][0] = pidPorti[SO_PORTI-1];
+        matr_richieste[(SO_PORTI - 1) * (SO_MERCI + 1)] = pidPorti[SO_PORTI - 1];
         
-        for(k = 1; k < SO_MERCI+1; k++){
-            if(arr_control[k-1] == 0){
-                matr_richieste[SO_PORTI-1][k] = 1;
+        for(k = 1; k < SO_MERCI + 1; k++){
+            if(arr_control[k - 1] == 0){
+                matr_richieste[((SO_PORTI - 1) *  (SO_MERCI + 1)) + k] = 1;
                 counter += 1;
             }
         }
+        
 
         /**
          * Assegnazione delle rimanenti richieste per l'ultimo porto, escludendo quelle con troppe richieste (> SO_PORTI/2)
@@ -568,13 +577,13 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
         for(k = 1; k <= SO_MERCI && flag < num_merci; k++){
             sum = 0;
             col_merce_richiesta = k;
-            for(i = 0; i < SO_PORTI-1; i++){
-                sum += matr_richieste[i][col_merce_richiesta];
+            for(i = 0; i < SO_PORTI - 1; i++){
+                sum += matr_richieste[(i * (SO_MERCI + 1)) + col_merce_richiesta];
             }
-            if(matr_richieste[SO_PORTI-1][col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
+            if(matr_richieste[((SO_PORTI - 1) * (SO_MERCI + 1)) + col_merce_richiesta] == 1 || sum >= SO_PORTI/2){
                 continue;
             }
-            matr_richieste[SO_PORTI-1][col_merce_richiesta] = 1;
+            matr_richieste[((SO_PORTI - 1) * (SO_MERCI + 1)) + col_merce_richiesta] = 1;
             flag++;
         }
     }  
@@ -591,9 +600,9 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
 
     i = 0;
     for(j = 0; j < SO_PORTI; j++){
-        for(k = 0; k < SO_MERCI+1; k++){
-            arr_richieste[i] = matr_richieste[j][k];
-            arr_offerte[i] = matr_offerte[j][k];
+        for(k = 0; k < SO_MERCI + 1; k++){
+            arr_richieste[i] = matr_richieste[(j * (SO_MERCI + 1)) + k];
+            arr_offerte[i] = matr_offerte[(j * (SO_MERCI + 1)) + k];
             i++;
         }
     }
@@ -605,9 +614,9 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
     if(print){
         printf("\tRICHIESTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
-            printf("Pid: %d ", matr_richieste[j][0]);
+            printf("Pid: %d ", matr_richieste[j * (SO_MERCI + 1)]);
             for(k = 1; k < SO_MERCI + 1; k++){
-                printf("merce: %d,\tpresa: %d\t", k, matr_richieste[j][k]);
+                printf("merce: %d,\tpresa: %d\t", k, matr_richieste[(j * (SO_MERCI + 1)) + k]);
             }
             printf("\n");
         }
@@ -615,9 +624,9 @@ void gen_richiesta_offerta(int * pidPorti, int * arr_richieste, int * arr_offert
 
         printf("\tOFFERTE\n\n");
         for(j = 0; j < SO_PORTI; j++){
-            printf("Pid: %d ", matr_offerte[j][0]);
+            printf("Pid: %d ", matr_offerte[j * (SO_MERCI + 1)]);
             for(k = 1; k < SO_MERCI + 1; k++){
-                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[j][k]);
+                printf("merce: %d,\tpresa: %d\t", k, matr_offerte[(j * (SO_MERCI + 1)) + k]);
             }
             printf("\n");
         }
